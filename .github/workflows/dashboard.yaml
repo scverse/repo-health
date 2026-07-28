@@ -21,9 +21,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      contents: read # check out this repo
+      pages: write # publish the rendered site
+      id-token: write # OIDC identity for deploy-pages
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -91,7 +91,7 @@ jobs:
     name: Keepalive Workflow
     runs-on: ubuntu-latest
     permissions:
-      actions: write
+      actions: write # re-enable this workflow's own schedule
     steps:
       - name: Re-enable workflow
         env:

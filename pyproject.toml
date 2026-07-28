@@ -40,7 +40,7 @@ version.source = "vcs"
 version.fallback-version = "0.0"
 build.targets.wheel.packages = [ "src/scverse_repo_health" ]
 # ship the YAML config inside the wheel too, so an installed copy still works
-build.targets.wheel.force-include."config" = "scverse_repo_health/_config_data"
+build.targets.wheel.force-include.config = "scverse_repo_health/_config_data"
 
 [tool.ruff]
 line-length = 120
@@ -84,18 +84,7 @@ lint.ignore = [
   "S311",    # we don’t need cryptographically secure RNG
   "S603",    # subprocess with shell=False should be allowed
 ]
-lint.unfixable = [
-  "RUF001", # never “fix” “confusables”
-]
-lint.allowed-confusables = [ "×", "’", "–", "—", "≥" ]
-lint.flake8-type-checking.exempt-modules = []
-lint.flake8-type-checking.runtime-evaluated-decorators = [
-  "cyclopts.App.default",
-]
-lint.flake8-type-checking.strict = true
-lint.isort.known-first-party = [ "scverse_repo_health" ]
-lint.isort.required-imports = [ "from __future__ import annotations" ]
-lint.per-file-ignores."scripts/*" = [ "T201" ]     # these are scripts; printing is the point
+lint.per-file-ignores."scripts/*" = [ "T201" ]  # these are scripts; printing is the point
 # Command bodies import their heavy dependencies lazily, so `repo-health --help` and
 # `list-checks` stay instant and never touch httpx or jinja2.
 lint.per-file-ignores."src/scverse_repo_health/cli.py" = [ "FBT001", "FBT002", "PLC0415", "PLR0917" ]
@@ -106,12 +95,23 @@ lint.per-file-ignores."tests/*" = [
   "PLR2004", # magic numbers in assertions are the assertion
   "PT018",   # composite asserts read fine here
 ]
+lint.unfixable = [
+  "RUF001", # never “fix” “confusables”
+]
+lint.allowed-confusables = [ "×", "–", "—", "’", "≥" ]
+lint.flake8-type-checking.exempt-modules = []
+lint.flake8-type-checking.runtime-evaluated-decorators = [
+  "cyclopts.App.default",
+]
+lint.flake8-type-checking.strict = true
+lint.isort.known-first-party = [ "scverse_repo_health" ]
+lint.isort.required-imports = [ "from __future__ import annotations" ]
 
 [tool.pyproject-fmt]
 column_width = 120
 
-[tool.pytest.ini_options]
-addopts = [ "--import-mode=importlib" ]
-asyncio_mode = "auto"
-filterwarnings = [ "error" ]
-testpaths = [ "tests" ]
+[tool.pytest]
+ini_options.testpaths = [ "tests" ]
+ini_options.addopts = [ "--import-mode=importlib" ]
+ini_options.filterwarnings = [ "error" ]
+ini_options.asyncio_mode = "auto"
