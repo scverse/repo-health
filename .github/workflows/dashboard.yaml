@@ -37,14 +37,16 @@ jobs:
         # It is narrowed the other way instead: every permission below is read-only.
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ secrets.APP_ID }}
+          client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: scverse # zizmor: ignore[github-app]
-          permission-metadata: read
-          permission-contents: read
-          permission-administration: read
-          permission-dependabot-alerts: read
-          permission-actions: read
+          # These are the action's input names, which follow the REST API's names for
+          # the permissions rather than the labels in the App settings UI:
+          permission-metadata: read # repo listing, rulesets, community profile
+          permission-contents: read # git trees, blobs, releases, compare
+          permission-administration: read # classic protection, environments, immutable releases
+          permission-vulnerability-alerts: read # "Dependabot alerts" in the UI
+          permission-checks: read # check runs, for pre-commit.ci / codecov detection
 
       - name: Set up uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0

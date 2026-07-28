@@ -200,18 +200,26 @@ waivers:
 The cron authenticates as the **`scverse-repo-health` GitHub App**, installed on the
 scverse org with **read-only** permissions:
 
-| Permission | Enables |
-|---|---|
-| Repository → Metadata | repo listing, releases, rulesets, community profile *(mandatory)* |
-| Repository → Contents | git trees and file blobs |
-| Repository → Administration | classic branch protection, immutable releases, secret scanning, Actions default permissions, environments |
-| Repository → Dependabot alerts | open alert counts |
-| Repository → Actions | workflow runs (pre-commit.ci / codecov detection) |
+| Permission (App settings UI) | `create-github-app-token` input | Enables |
+|---|---|---|
+| Repository → Metadata | `permission-metadata` | repo listing, rulesets, community profile *(mandatory)* |
+| Repository → Contents | `permission-contents` | git trees, file blobs, releases, commit comparison |
+| Repository → Administration | `permission-administration` | classic branch protection, immutable releases, secret scanning, Actions default permissions, environments |
+| Repository → Dependabot alerts | `permission-vulnerability-alerts` | open alert counts |
+| Repository → Checks | `permission-checks` | check runs, for pre-commit.ci / codecov detection |
 
-No organization-level permissions are needed.
+The input names follow the REST API's names for the permissions, not the labels in the
+settings UI — "Dependabot alerts" is `vulnerability-alerts`. No organization-level
+permissions are needed.
+
+The App must be **installed on the scverse organization**, not merely created; the
+workflow resolves the installation from `owner: scverse`, and a 404 from
+`/users/scverse/installation` means there is no installation to find.
 
 Repository secrets on `scverse/repo-health`: `APP_ID`, `APP_PRIVATE_KEY`, `RTD_TOKEN`.
-The workflow mints a short-lived installation token with `actions/create-github-app-token`.
+The workflow mints a short-lived installation token with `actions/create-github-app-token`,
+passing `APP_ID` as `client-id`. That input expects the App's **Client ID** (`Iv23…`); if
+the secret holds the numeric **App ID** instead, use the `app-id` input.
 
 Locally the tool falls back to `$GITHUB_TOKEN`, `$GH_TOKEN`, or `gh auth token`, and the
 admin-only checks simply render as `?`. It also works with no credentials at all, subject
