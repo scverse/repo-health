@@ -19,7 +19,8 @@ repos:
       - id: zizmor
         # The default persona would not have caught `undocumented-permissions`, so the
         # workflows would have drifted back to unexplained `write` scopes unnoticed.
-        args: [--persona=pedantic]
+        # `--no-progress` is the hook's own default arg, which `args:` would otherwise drop.
+        args: [--no-progress, --persona=pedantic]
   - repo: https://github.com/biomejs/pre-commit
     rev: f6d5e1fa73430779cef768d00c512fa86162fe6e # v2.5.5
     hooks:

@@ -32,20 +32,25 @@ jobs:
 
       - name: Mint an installation token for the scverse org
         id: app-token
-        # zizmor: ignore[github-app] the whole point of this job is to read every
-        # repository in the org, so the token cannot be scoped to a repository list.
-        # It is narrowed the other way instead: every permission below is read-only.
+        # No `repositories:` — the job exists to read every repository in the org, so it
+        # cannot be scoped to a list, and a hardcoded one would go stale weekly.
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: scverse # zizmor: ignore[github-app]
-          # These are the action's input names, which follow the REST API's names for
-          # the permissions rather than the labels in the App settings UI:
+          # These narrow the token to a subset of what the App was granted. Every one
+          # must ALSO be granted to the installation, or the whole run fails with a 422
+          # that does not name the missing permission — see README.md § Authentication
+          # for the matching list of App settings.
+          #
+          # Input names follow the REST API, not the App settings UI: "Dependabot
+          # alerts" is `vulnerability-alerts`, and check runs are `checks`, not
+          # `actions`.
           permission-metadata: read # repo listing, rulesets, community profile
-          permission-contents: read # git trees, blobs, releases, compare
-          permission-administration: read # classic protection, environments, immutable releases
-          permission-vulnerability-alerts: read # "Dependabot alerts" in the UI
+          permission-contents: read # git trees, blobs, releases, tags, compare
+          permission-administration: read # classic protection, environments, immutable releases, secret scanning, default workflow permissions
+          permission-vulnerability-alerts: read # open Dependabot alert counts
           permission-checks: read # check runs, for pre-commit.ci / codecov detection
 
       - name: Set up uv

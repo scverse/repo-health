@@ -200,26 +200,40 @@ waivers:
 The cron authenticates as the **`scverse-repo-health` GitHub App**, installed on the
 scverse org with **read-only** permissions:
 
-| Permission (App settings UI) | `create-github-app-token` input | Enables |
+Set **exactly these five** under *Permissions & events → Repository permissions*, each to
+**Read-only**, and nothing else. No organization or account permissions are needed.
+
+| App settings UI | Workflow input | Endpoints it unlocks |
 |---|---|---|
-| Repository → Metadata | `permission-metadata` | repo listing, rulesets, community profile *(mandatory)* |
-| Repository → Contents | `permission-contents` | git trees, file blobs, releases, commit comparison |
-| Repository → Administration | `permission-administration` | classic branch protection, immutable releases, secret scanning, Actions default permissions, environments |
-| Repository → Dependabot alerts | `permission-vulnerability-alerts` | open alert counts |
-| Repository → Checks | `permission-checks` | check runs, for pre-commit.ci / codecov detection |
+| **Metadata** | `permission-metadata` | `/orgs/{org}/repos`, `/repos/{o}/{r}`, `/rules/branches/{branch}`, `/community/profile` *(mandatory; GitHub grants it automatically)* |
+| **Contents** | `permission-contents` | `/git/trees`, `/contents/{path}`, `/releases`, `/tags`, `/compare` |
+| **Administration** | `permission-administration` | `/branches/{b}/protection`, `/immutable-releases`, `/environments`, `/actions/permissions/workflow`, `/private-vulnerability-reporting`, and `security_and_analysis` on the repo object |
+| **Dependabot alerts** | `permission-vulnerability-alerts` | `/dependabot/alerts` |
+| **Checks** | `permission-checks` | `/commits/{ref}/check-runs` |
 
-The input names follow the REST API's names for the permissions, not the labels in the
-settings UI — "Dependabot alerts" is `vulnerability-alerts`. No organization-level
-permissions are needed.
+The workflow inputs are not named after the UI labels — they follow the REST API. The two
+that catch people out: "Dependabot alerts" is `vulnerability-alerts`, and check runs come
+under `checks`, **not** `actions`.
 
-The App must be **installed on the scverse organization**, not merely created; the
-workflow resolves the installation from `owner: scverse`, and a 404 from
-`/users/scverse/installation` means there is no installation to find.
+The two lists must agree. `permission-*:` can only *narrow* what the installation holds,
+so asking for anything it lacks fails the run with a 422 that does not name the culprit.
+If you drop a permission from the App, drop the matching input too.
+
+> **Adding a permission to an App does not reach existing installations.** GitHub queues
+> it for review and the installation keeps its old set until an org owner accepts. If you
+> granted Checks after installing and still get a 422, that acceptance is what is missing:
+> **Organization settings → GitHub Apps → `scverse-repo-health` → Review request**.
+
+Two setup mistakes worth recognising by their error:
+
+| Symptom | Cause |
+|---|---|
+| `404` on `/users/scverse/installation` | the App exists but is not installed on the org |
+| `422 The permissions requested are not granted to this installation` | a `permission-*:` input asks for something the installation lacks — or was granted on the App but never accepted on the installation |
 
 Repository secrets on `scverse/repo-health`: `APP_ID`, `APP_PRIVATE_KEY`, `RTD_TOKEN`.
-The workflow mints a short-lived installation token with `actions/create-github-app-token`,
-passing `APP_ID` as `client-id`. That input expects the App's **Client ID** (`Iv23…`); if
-the secret holds the numeric **App ID** instead, use the `app-id` input.
+`APP_ID` is passed as `client-id`, which expects the App's **Client ID** (`Iv23…`); if the
+secret holds the numeric **App ID** instead, switch the input to `app-id`.
 
 Locally the tool falls back to `$GITHUB_TOKEN`, `$GH_TOKEN`, or `gh auth token`, and the
 admin-only checks simply render as `?`. It also works with no credentials at all, subject
