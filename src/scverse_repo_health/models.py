@@ -79,6 +79,19 @@ class Category(StrEnum):
         }[self]
 
 
+#: ``packages.json`` category strings, mapped to the dashboard's four groups. The index's
+#: own vocabulary is not the enum's: its 97 `ecosystem` packages are what the dashboard
+#: shows as "other". A string missing from here lands the repo in `OTHER` by default, which
+#: `template/packages-json` warns about — it means scverse.org has grown a category the
+#: dashboard has not been taught.
+PACKAGE_CATEGORIES = {
+    "core-datastructure": Category.CORE_DATASTRUCTURE,
+    "core-framework": Category.CORE_FRAMEWORK,
+    "core-infrastructure": Category.CORE_INFRASTRUCTURE,
+    "ecosystem": Category.OTHER,
+    "other": Category.OTHER,
+}
+
 #: Order the four groups appear in on the dashboard.
 CATEGORY_ORDER = [
     Category.CORE_DATASTRUCTURE,
@@ -151,6 +164,7 @@ _BULK_FIELDS = frozenset(
         "actions_permissions",
         "immutable_releases",
         "private_vulnerability_reporting",
+        "zizmor",
     }
 )
 #: The parts of the GitHub repo object the dashboard actually shows.
@@ -202,6 +216,8 @@ class RepoData:
     dependabot_alerts: list[dict[str, Any]] | None = None
     #: Names of check runs seen on the tip of the default branch.
     check_runs: list[str] = field(default_factory=list)
+    #: Result of auditing this repo's CI definitions, see :mod:`.sources.zizmor`.
+    zizmor: dict[str, Any] | None = None
     #: PyPI data, see :mod:`scverse_repo_health.sources.pypi`.
     pypi: dict[str, Any] | None = None
     #: Read the Docs data, see :mod:`scverse_repo_health.sources.readthedocs`.

@@ -26,6 +26,7 @@ dependencies = [
   "packaging",
   "pyyaml",
   "rich",
+  "zizmor",         # `security/zizmor-clean` shells out to it, so it has to be installed
 ]
 urls.Documentation = "https://scverse.github.io/repo-health/"
 urls.Issues = "https://github.com/scverse/repo-health/issues"

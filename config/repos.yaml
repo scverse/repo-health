@@ -20,8 +20,6 @@ exclusions:
     reason: Org-level community health files, not a project
   - repo: benchmark
     reason: Ad-hoc benchmarking scripts, not a released package
-  - repo: gpu-ci-config
-    reason: Infrastructure config for the GPU CI AMI
 
   # -- events, workshops, hackathons ------------------------------------------------
   - repo: 202510_workshop_GSCN
@@ -132,6 +130,7 @@ include:
   - spatialdata-io
   - spatialdata-plot
   - zulip-bots
+  - gpu-ci-config
 
 # Intentional deviations. The cell renders grey with this reason on hover instead of red.
 #

@@ -5,7 +5,16 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from scverse_repo_health.models import Tier, failed, not_applicable, passed, unknown, verdict, warned
+from scverse_repo_health.models import (
+    PACKAGE_CATEGORIES,
+    Tier,
+    failed,
+    not_applicable,
+    passed,
+    unknown,
+    verdict,
+    warned,
+)
 from scverse_repo_health.registry import check
 
 from ._util import is_python_package, pyproject, truncate
@@ -106,7 +115,9 @@ def template_up_to_date(r: RepoData) -> CheckResult:  # noqa: PLR0911 - one retu
     tier=Tier.RECOMMENDED,
     category=CATEGORY,
     title="src layout + hatchling",
-    description="Builds with hatchling/hatch-vcs from a `src/` layout",
+    # Deliberately says nothing about hatch-vcs: deriving the version from git is the
+    # template's default, not a requirement, and a hand-written `version` is fine.
+    description="Builds with hatchling from a `src/` layout",
     needs=("cont",),
     applies_to=is_python_package,
 )
@@ -116,18 +127,15 @@ def src_layout(r: RepoData) -> CheckResult:
     if parsed is None:
         return unknown("Could not parse `pyproject.toml`", fix)
     backend = ((parsed.get("build-system") or {}).get("build-backend") or "").lower()
-    requires = " ".join((parsed.get("build-system") or {}).get("requires") or []).lower()
     has_src = any(p.startswith("src/") for p in r.tree)
     problems = []
     if "hatchling" not in backend:
         problems.append(f"build backend is {backend or 'unset'}")
-    if "hatch-vcs" not in requires:
-        problems.append("no hatch-vcs")
     if not has_src:
         problems.append("no `src/` directory")
     if problems:
         return failed("; ".join(problems), fix)
-    return passed("hatchling + hatch-vcs, src layout", fix)
+    return passed("hatchling, src layout", fix)
 
 
 @check(
@@ -196,24 +204,31 @@ def default_branch_is_main(r: RepoData) -> CheckResult:
     tier=Tier.INFORMATIONAL,
     category=CATEGORY,
     title="Listed in packages.json",
-    description="Listed in scverse.org's ecosystem index, with a matching license and category",
+    description="Listed in scverse.org's ecosystem index, under a category the dashboard knows",
     needs=("web",),
-    applies_to=is_python_package,
+    # Not gated on being a Python package: the index carries the website, the governance
+    # repo and the template as `core-infrastructure`, and it is the only reason we know
+    # they are core infrastructure at all. Gating on `pyproject.toml` skipped exactly the
+    # repos whose listing matters most.
 )
 def listed_in_packages_json(r: RepoData) -> CheckResult:
     fix = "https://github.com/scverse/scverse.github.io/blob/main/data/ecosystem-packages.yaml"
     if not r.package_entry:
         return not_applicable("Not listed in packages.json")
     entry = r.package_entry
-    mismatches = []
+    listed = str(entry.get("category") or "").strip().lower()
+    problems = []
     repo_license = ((r.repo.get("license") or {}) or {}).get("spdx_id")
     if entry.get("license") and repo_license and entry["license"] != repo_license:
-        mismatches.append(f"license {entry['license']} vs GitHub's {repo_license}")
-    if entry.get("category") and entry["category"] != str(r.category):
-        mismatches.append(f"category {entry['category']}")
-    if mismatches:
-        return warned(f"Listed as {truncate(mismatches)}", fix)
-    return passed(f"Listed under {entry.get('category', 'no category')}", fix)
+        problems.append(f"license {entry['license']} vs GitHub's {repo_license}")
+    # The repo's own category *is* this string, mapped — so they can never disagree. What
+    # can go wrong is the index using a category the mapping has never heard of, which
+    # silently drops the repo into "other".
+    if listed and listed not in PACKAGE_CATEGORIES:
+        problems.append(f"category {listed!r} is not one the dashboard maps")
+    if problems:
+        return warned(truncate(problems), fix)
+    return passed(f"Listed under {listed or 'no category'}", fix)
 
 
 def _required_status_checks(r: RepoData) -> list[str]:

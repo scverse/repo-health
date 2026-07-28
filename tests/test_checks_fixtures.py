@@ -48,7 +48,7 @@ def test_scirpy_template_survives_a_tmp_path(scirpy_results):
         ("packaging/trusted-publishing", Status.PASS),
         ("packaging/release-workflow", Status.PASS),
         ("security/actions-pinned", Status.PASS),
-        ("security/zizmor", Status.PASS),
+        ("security/zizmor-clean", Status.PASS),
         ("security/persist-credentials", Status.PASS),
         ("governance/license", Status.PASS),
         # scirpy publishes mutable releases and pins pre-commit revs to tags.
@@ -94,7 +94,7 @@ def test_scirpy_classic_protection_is_unknown_not_failed(scirpy_results):
         ("docs/rtd-core-devs", Status.FAIL),
         ("docs/scverse-domain", Status.WARN),
         ("security/actions-pinned", Status.FAIL),
-        ("security/zizmor", Status.FAIL),
+        ("security/zizmor-clean", Status.FAIL),
         ("security/workflow-permissions", Status.FAIL),
         ("packaging/pypi-environment", Status.PASS),
         ("packaging/version-sync", Status.PASS),

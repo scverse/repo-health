@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from scverse_repo_health.models import Tier, failed, passed, unknown, verdict, warned
+from scverse_repo_health.models import Tier, failed, not_applicable, passed, unknown, verdict, warned
 from scverse_repo_health.registry import check
 
 from ._util import host_of, is_python_package, truncate
@@ -138,8 +138,8 @@ def scverse_domain(r: RepoData) -> CheckResult:
     id="docs/rtd-build",
     tier=Tier.RECOMMENDED,
     category=CATEGORY,
-    title="Latest RTD build passed",
-    description="The most recent Read the Docs build succeeded",
+    title="Stable RTD build passed",
+    description="The most recent build of the `stable` version succeeded",
     needs=("rtd",),
     applies_to=_has_rtd,
 )
@@ -148,18 +148,21 @@ def rtd_build(r: RepoData) -> CheckResult:
         return unknown(reason)
     if not r.rtd:
         return failed("No Read the Docs project to inspect")
-    build = r.rtd.get("latest_build")
+    build = r.rtd.get("stable_build")
     if not build:
-        return unknown("No builds recorded", r.rtd.get("home"))
-    version = build.get("version")
+        # Either the project has no `stable` version — nothing tagged yet — or it has one
+        # that has never been built. Neither is a broken build.
+        return not_applicable("No build of a `stable` version", r.rtd.get("home"))
     url = build.get("url")
     # RTD only fills in `success` once the build reaches `finished`; a build that is
     # still cloning or installing is not a failure, we just caught it mid-flight.
     if (state := build.get("state")) != "finished":
-        return unknown(f"Build of `{version}` is still {state or 'running'}", url)
+        return unknown(f"The `stable` build is still {state or 'running'}", url)
+    commit = str(build.get("commit") or "?")[:7]
+    when = str(build.get("finished") or "?")[:10]
     return verdict(
         bool(build.get("success")),
-        f"Latest build of `{version}` succeeded",
-        f"Latest build of `{version}` failed",
+        f"`stable` built from `{commit}` on {when}",
+        f"The `stable` build of `{commit}` failed on {when}",
         fix_url=url,
     )

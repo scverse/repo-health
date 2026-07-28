@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from scverse_repo_health._log import log
-from scverse_repo_health.models import Category
+from scverse_repo_health.models import PACKAGE_CATEGORIES, Category
 
 from ._http import DiskCache, cache_dir
 
@@ -15,8 +15,6 @@ if TYPE_CHECKING:
     from typing import Any
 
 PACKAGES_URL = "https://scverse.org/ecosystem-packages/packages.json"
-
-_CATEGORIES = {c.value: c for c in Category}
 
 
 async def fetch_packages(*, cache: bool = True) -> list[dict[str, Any]]:
@@ -65,4 +63,4 @@ def category_of(entry: dict[str, Any] | None) -> Category:
     """``packages.json`` category string -> :class:`~..models.Category`."""
     if not entry:
         return Category.OTHER
-    return _CATEGORIES.get((entry.get("category") or "").strip().lower(), Category.OTHER)
+    return PACKAGE_CATEGORIES.get((entry.get("category") or "").strip().lower(), Category.OTHER)

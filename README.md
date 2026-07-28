@@ -49,7 +49,7 @@ $ uv run repo-health audit-exclusions         # non-zero if an org repo is uncla
 Useful flags: `--repo NAME` (repeatable) restricts to a few repos, `--no-cache` bypasses
 the ETag cache, `--include-archived` adds archived repos, `--previous last-week.json`
 outlines the cells that changed, `--skip-pypi` / `--skip-rtd` keep the run entirely
-inside GitHub.
+inside GitHub, and `--skip-zizmor` skips the one check that shells out.
 
 Failing *checks* never set a non-zero exit code — only collection errors do. The
 dashboard is informational and a red cell must not break the weekly cron. When a single
@@ -58,7 +58,7 @@ the footer) and *then* exits 2, so CI goes red without costing you the other eig
 
 ## The checks
 
-40 checks in six groups, which are the six column groups on the dashboard. Each declares
+37 checks in six groups, which are the six column groups on the dashboard. Each declares
 a **tier** and what data it **needs**:
 
 | Tier | Meaning |
@@ -89,11 +89,11 @@ say — render `–`. `repo-health list-checks` prints this same catalogue in th
 |---|---|---|---|
 | **R** | `template/cruft` | `.cruft.json` exists and names the scverse template | cont |
 | **R** | `template/up-to-date` | `.cruft.json` commit matches the latest cookiecutter-scverse release | cont meta |
-| **r** | `template/src-layout` | Builds with hatchling/hatch-vcs from a `src/` layout | cont |
+| **r** | `template/src-layout` | Builds with hatchling from a `src/` layout | cont |
 | **r** | `template/pre-commit-ci` | pre-commit.ci runs on pull requests | meta |
 | **r** | `template/codecov` | A codecov config or a codecov check run exists | cont meta |
 | **r** | `template/default-branch` | The default branch is called `main` | meta |
-| **i** | `template/packages-json` | Listed in scverse.org's ecosystem index, with a matching license and category | web |
+| **i** | `template/packages-json` | Listed in scverse.org's ecosystem index, under a category the dashboard knows | web |
 
 ### Documentation
 
@@ -103,7 +103,7 @@ say — render `–`. `repo-health list-checks` prints this same catalogue in th
 | **R** | `docs/rtd-linked` | The Read the Docs project of the same slug builds *this* repository | rtd |
 | **R** | `docs/rtd-core-devs` | At least two scverse core devs can administer the RTD project | rtd |
 | **R** | `docs/scverse-domain` | Documentation is served from `<package>.scverse.org`, not readthedocs.io | rtd meta |
-| **r** | `docs/rtd-build` | The most recent Read the Docs build succeeded | rtd |
+| **r** | `docs/rtd-build` | The most recent build of the `stable` version succeeded | rtd |
 
 The last four are `–` for a repo with no `.readthedocs.yaml` — that one missing file is
 already the finding, and would otherwise be counted five times over.
@@ -129,19 +129,30 @@ attestation names the exact workflow and tag that published the artefact, e.g.
 | | Check | What it means | Needs |
 |---|---|---|---|
 | **R** | `security/actions-pinned` | Every `uses:` names a full 40-character commit SHA | cont |
-| **R** | `security/zizmor` | zizmor audits the workflows, via pre-commit or a workflow of its own | cont |
-| **R** | `security/dependabot` | `.github/dependabot.yml` covers the github-actions and pre-commit ecosystems | cont |
-| **R** | `security/workflow-permissions` | Every workflow declares a top-level `permissions:`, and the repo default is read-only | cont admin |
 | **r** | `security/precommit-pinned` | Every `rev:` in `.pre-commit-config.yaml` is a commit SHA | cont |
+| **R** | `security/zizmor-clean` | A zizmor audit of every workflow, action and Dependabot config reports no findings | cont |
+| **R** | `security/dependabot` | `.github/dependabot.yml` covers both the github-actions and pre-commit ecosystems | cont |
 | **r** | `security/dependabot-alerts` | No unresolved Dependabot security alerts | sec |
 | **r** | `security/secret-scanning` | Secret scanning and push protection are both enabled | admin |
 | **r** | `security/private-vuln-reporting` | Researchers can report vulnerabilities privately | admin |
+| **R** | `security/workflow-permissions` | Every workflow declares a top-level `permissions:`, and the repo default is read-only | cont admin |
 | **r** | `security/persist-credentials` | `actions/checkout` steps set `persist-credentials: false` (zizmor `artipacked`) | cont |
 | **r** | `security/dangerous-triggers` | `pull_request_target` does not check out untrusted PR code (zizmor `dangerous-triggers`) | cont |
 | **r** | `security/security-md` | A security policy exists, in this repo or via the org's `.github` repo | meta |
 
 `precommit-pinned` is red almost everywhere, because the template itself still pins
 pre-commit hooks to tags. That is informative: the template is what needs changing.
+
+`zizmor-clean` runs the real [zizmor](https://docs.zizmor.sh) — a project dependency, so
+it is simply installed — over the workflows, composite actions and Dependabot config the
+collector already fetched, written to a temp directory. It is deliberately not "is zizmor
+configured": the template already brings the hook, so that only confirmed the template.
+The audit covers everything zizmor can read rather than the paths a repo's own hook is
+scoped to, which is how this repo once shipped an unaudited `dependabot.yml`. A repo's own
+`# zizmor: ignore[…]` comments and `.github/zizmor.yml` are honoured — a triaged finding
+is a decision, not a defect — and the `regular` persona keeps false positives out of a
+required check. Findings need only `contents:read`; with a token the online audits (stale
+and known-vulnerable action refs) run too, and the cell says which of the two it was.
 
 ### Branch protection & review
 
@@ -156,16 +167,13 @@ fall back to `/branches/{b}/protection`, which needs `administration:read` — h
 | **R** | `branch/requires-pr` | Changes to the default branch must go through a pull request | meta admin? |
 | **R** | `branch/requires-review` | A pull request needs at least one approving review to merge | meta admin? |
 | **r** | `branch/status-checks` | At least one status check must pass before merging | meta admin? |
-| **i** | `branch/linear-history` | Merge commits are not allowed on the default branch | meta admin? |
 
 ### Governance & community
 
 | | Check | What it means | Needs |
 |---|---|---|---|
 | **R** | `governance/license` | The repo carries a recognised OSI-approved license | meta |
-| **r** | `governance/community-files` | Code of conduct, contributing guide and issue templates are in place | meta |
 | **r** | `governance/description-topics` | The repo has a description, a homepage and the `scverse` topic | meta |
-| **i** | `governance/citation` | A machine-readable citation file is present | cont |
 | **i** | `governance/maintained` | Pushed to within the last year | meta |
 
 ## Repository selection

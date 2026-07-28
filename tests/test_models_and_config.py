@@ -50,7 +50,7 @@ def test_score_ignores_na_and_unknown():
             "governance/license": CheckResult(Status.PASS),
             "branch/protected": CheckResult(Status.UNKNOWN),
             "branch/requires-pr": CheckResult(Status.FAIL),
-            "governance/citation": CheckResult(Status.PASS),  # informational, not scored
+            "governance/maintained": CheckResult(Status.PASS),  # informational, not scored
         },
     )
     assert report.score(Tier.REQUIRED) == (1, 2)
@@ -90,8 +90,8 @@ def test_core_devs_file_needs_only_login_and_name():
 
 
 def test_waivers_are_per_repo():
-    config = ReposConfig(waivers={"demo": {"security/zizmor": "handled elsewhere"}})
-    assert config.waivers["demo"]["security/zizmor"]
+    config = ReposConfig(waivers={"demo": {"security/zizmor-clean": "handled elsewhere"}})
+    assert config.waivers["demo"]["security/zizmor-clean"]
 
 
 @pytest.mark.parametrize(

@@ -797,14 +797,6 @@
  "rtd": {
   "default_branch": "main",
   "home": "https://app.readthedocs.org/projects/scanpy/",
-  "latest_build": {
-   "finished": "2024-12-10T15:43:13.100550Z",
-   "id": 26547856,
-   "state": "finished",
-   "success": true,
-   "url": "https://app.readthedocs.org/projects/scanpy/builds/26547856/",
-   "version": "latest"
-  },
   "name": "scanpy",
   "readthedocs_yaml_path": null,
   "repository": {
@@ -812,6 +804,15 @@
    "url": "https://github.com/theislab/scanpy.git"
   },
   "slug": "scanpy",
+  "stable_build": {
+   "commit": "e4a05f1fad491471ebbe0da13b4c4c02a50787f3",
+   "finished": "2024-11-12T10:13:34.681988Z",
+   "id": 26251242,
+   "state": "finished",
+   "success": true,
+   "url": "https://app.readthedocs.org/projects/scanpy/builds/26251242/",
+   "version": "stable"
+  },
   "urls": {
    "builds": "https://app.readthedocs.org/projects/scanpy/builds/",
    "documentation": "https://scanpy.readthedocs.io/en/latest/",
@@ -1989,5 +1990,213 @@
   ".github/workflows/check-pr.yml": "name: Pull Request Validation\n\non:\n  pull_request:\n    branches:\n      - main\n    types:\n      # title changes\n      - edited\n      # milestone changes\n      - milestoned\n      - demilestoned\n      # label changes for \u201cno milestone\u201d\n      - labeled\n      - unlabeled\n      # initial check\n      - opened\n      - edited\n      - reopened\n      # code change (e.g. this workflow)\n      - synchronize\n\njobs:\n  # This job verifies that the milestone is present or not necessary\n  # and determines if \u201ccheck-relnotes\u201d needs to be run.\n  check-milestone:\n    name: Check title, milestone, and labels\n    runs-on: ubuntu-latest\n    steps:\n      - name: Check if milestone or \u201cno milestone\u201d label is present\n        uses: flying-sheep/check@v1\n        with:\n          success: ${{ github.event.pull_request.user.login == 'pre-commit-ci[bot]' || github.event.pull_request.milestone != null || contains(github.event.pull_request.labels.*.name, 'no milestone') }}\n      - name: Check if the \u201cRelease notes\u201d checkbox is checked and filled\n        uses: kaisugi/action-regex-match@v1.0.2\n        id: checked-relnotes\n        with:\n          text: ${{ github.event.pull_request.body }}\n          regex: '^\\s*- \\[x\\].*Release notes.*not necessary because:(.*)$'\n          flags: m\n      - name: Check PR title\n        id: check-title\n        uses: amannn/action-semantic-pull-request@v6\n        env: # Needs repo options: \u201cSquash and merge\u201d with commit message set to \u201cPR title\u201d\n          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n    outputs:\n      no-relnotes-reason: ${{ steps.checked-relnotes.outputs.group1 }}\n      type: ${{ steps.check-title.outputs.type }}\n  # This job verifies that the relevant release notes file has been modified.\n  check-relnotes:\n    name: Check for release notes\n    runs-on: ubuntu-latest\n    needs: check-milestone\n    if: github.event.pull_request.user.login != 'pre-commit-ci[bot]' && needs.check-milestone.outputs.no-relnotes-reason == '' && !contains(fromJSON('[\"style\",\"refactor\",\"test\",\"build\",\"docs\",\"ci\"]'), needs.check-milestone.outputs.type)\n    steps:\n      - uses: actions/checkout@v7\n        with: { filter: 'blob:none', fetch-depth: 0 }\n      - name: Find out if a relevant release fragment is added\n        uses: dorny/paths-filter@v4\n        id: changes\n        with:\n          filters: | # this is intentionally a string\n            relnotes: 'docs/release-notes/${{ github.event.pull_request.number }}.${{ (contains(github.event.pull_request.title, '!') && 'breaking') || needs.check-milestone.outputs.type }}.md'\n      - name: Check if a relevant release fragment is added\n        uses: flying-sheep/check@v1\n        with:\n          success: ${{ steps.changes.outputs.relnotes }}\n",
   ".github/workflows/ci.yml": "name: CI\n\non:\n  push:\n    branches:\n      - main\n      - \"[0-9]+.[0-9]+.x\"\n  pull_request:\n\nenv:\n  PYTEST_ADDOPTS: \"-v --color=yes -n auto --internet-tests --junitxml=test-data/test-results.xml\"\n  FORCE_COLOR: \"1\"\n  MPLBACKEND: agg\n  # It\u2019s impossible to ignore SyntaxWarnings for a single module,\n  # so because leidenalg 0.10.0 has them, we pre-compile things: https://github.com/vtraag/leidenalg/issues/173\n  UV_COMPILE_BYTECODE: \"1\"\n\njobs:\n  get-environments:\n    runs-on: ubuntu-latest\n    outputs:\n      envs: ${{ steps.get-envs.outputs.envs }}\n    steps:\n      - uses: actions/checkout@v7\n        with: { filter: 'blob:none', fetch-depth: 0 }\n      - uses: astral-sh/setup-uv@v9.0.0\n        with: { enable-cache: false }\n      - id: get-envs\n        run: |\n          ENVS_JSON=$(NO_COLOR=1 uvx hatch env show --json | jq -c 'to_entries\n            | map(\n              select(.key | startswith(\"hatch-test\"))\n              | {\n                name: .key,\n                \"test-type\": (if (.key | test(\"pre|low-vers\")) then \"coverage\" else null end),\n                python: .value.python\n              }\n            )')\n          echo \"envs=${ENVS_JSON}\" | tee $GITHUB_OUTPUT\n\n  test:\n    needs: get-environments\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n        env: ${{ fromJSON(needs.get-environments.outputs.envs) }}\n    permissions:\n      id-token: write  # for codecov OIDC\n    steps:\n      - uses: actions/checkout@v7\n        with: { filter: 'blob:none', fetch-depth: 0 }\n\n      - uses: astral-sh/setup-uv@v9.0.0\n        with:\n          python-version: ${{ matrix.env.python }}\n\n      - name: Cache downloaded data\n        uses: actions/cache@v6\n        with:\n          path: .pytest_cache/d/scanpy-data\n          key: pytest\n\n      - name: Install dependencies\n        run: |\n          echo \"::group::Install hatch\"\n          uv tool install hatch\n          echo \"::endgroup::\"\n          echo \"::group::Create environment\"\n          hatch -v env create ${{ matrix.env.name }}\n          echo \"::endgroup::\"\n          hatch run ${{ matrix.env.name }}:session-info scanpy anndata\n\n      - name: Run tests\n        if: matrix.env.test-type == null\n        run: hatch run ${{ matrix.env.name }}:run\n      - name: Run tests (coverage)\n        if: matrix.env.test-type == 'coverage'\n        run: |\n          hatch run ${{ matrix.env.name }}:run-cov\n          hatch run ${{ matrix.env.name }}:cov-combine\n          hatch run ${{ matrix.env.name }}:coverage xml\n          hatch run ${{ matrix.env.name }}:cov-report\n\n      - name: Upload coverage data\n        if: ${{ !cancelled() && matrix.env.test-type == 'coverage' }}\n        uses: codecov/codecov-action@v6\n        with:\n          flags: ${{ matrix.env.name }}\n          files: test-data/coverage.xml\n          use_oidc: true\n          fail_ci_if_error: true\n\n      - name: Upload test results\n        if: ${{ !cancelled() }}\n        uses: codecov/codecov-action@v6\n        with:\n          report_type: test_results\n          flags: ${{ matrix.env.name }}\n          files: test-data/test-results.xml\n          use_oidc: true\n          fail_ci_if_error: true\n\n      - name: Publish debug artifacts\n        if: ${{ !cancelled() }}\n        uses: actions/upload-artifact@v5\n        with:\n          name: debug-data-${{ matrix.env.name }}\n          path: .pytest_cache/d/debug\n\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v7\n        with: { filter: 'blob:none', fetch-depth: 0 }\n      - uses: actions/setup-python@v7\n        with:\n          python-version: \"3.x\"\n      - uses: astral-sh/setup-uv@v9.0.0\n        with:\n          enable-cache: true\n      - run: uvx --from build pyproject-build --sdist --wheel .\n      - run: uvx twine check dist/*\n\n  check:\n    if: always()\n    needs:\n      - get-environments\n      - test\n      - build\n    runs-on: ubuntu-latest\n    steps:\n      - uses: re-actors/alls-green@release/v1\n        with:\n          jobs: ${{ toJSON(needs) }}\n",
   ".github/workflows/publish.yml": "name: Publish Python Package\n\non:\n  release:\n    types: [published]\n\nenv:\n  FORCE_COLOR: \"1\"\n\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    environment: pypi\n    permissions:\n      id-token: write # to authenticate as Trusted Publisher to pypi.org\n    steps:\n      - uses: actions/checkout@v7\n        with: { filter: 'blob:none', fetch-depth: 0 }\n      - uses: actions/setup-python@v7\n        with:\n          python-version: \"3.x\"\n      - uses: astral-sh/setup-uv@v9.0.0\n      - run: uvx --from build pyproject-build --sdist --wheel .\n      - run: uvx twine check dist/*\n      - uses: pypa/gh-action-pypi-publish@release/v1\n"
+ },
+ "zizmor": {
+  "count": 42,
+  "findings": [
+   {
+    "confidence": "High",
+    "desc": "insufficient cooldown in Dependabot updates",
+    "ident": "dependabot-cooldown",
+    "path": ".github/dependabot.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#dependabot-cooldown"
+   },
+   {
+    "confidence": "High",
+    "desc": "insufficient cooldown in Dependabot updates",
+    "ident": "dependabot-cooldown",
+    "path": ".github/dependabot.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#dependabot-cooldown"
+   },
+   {
+    "confidence": "Low",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "ident": "artipacked",
+    "path": ".github/workflows/benchmark.yml",
+    "severity": "Low",
+    "url": "https://docs.zizmor.sh/audits/#artipacked"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/benchmark.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/benchmark.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/benchmark.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/benchmark.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "Low",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "ident": "artipacked",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "Low",
+    "url": "https://docs.zizmor.sh/audits/#artipacked"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/check-pr.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   },
+   {
+    "confidence": "Low",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "ident": "artipacked",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Low",
+    "url": "https://docs.zizmor.sh/audits/#artipacked"
+   },
+   {
+    "confidence": "Low",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "ident": "artipacked",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Low",
+    "url": "https://docs.zizmor.sh/audits/#artipacked"
+   },
+   {
+    "confidence": "Low",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "ident": "artipacked",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Low",
+    "url": "https://docs.zizmor.sh/audits/#artipacked"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "Medium",
+    "desc": "overly broad permissions",
+    "ident": "excessive-permissions",
+    "path": ".github/workflows/ci.yml",
+    "severity": "Medium",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions"
+   },
+   {
+    "confidence": "High",
+    "desc": "unpinned action reference",
+    "ident": "unpinned-uses",
+    "path": ".github/workflows/ci.yml",
+    "severity": "High",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses"
+   }
+  ],
+  "inputs": 5,
+  "online": false,
+  "persona": "regular"
  }
 }

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from scverse_repo_health.models import Tier, failed, not_applicable, passed, unknown, verdict, warned
 from scverse_repo_health.registry import check
+from scverse_repo_health.sources.zizmor import audit_inputs
 
 from ._util import (
     dependabot_config,
@@ -20,7 +21,6 @@ from ._util import (
     iter_uses,
     load_yaml,
     plural,
-    precommit_hook_ids,
     precommit_path,
     precommit_repos,
     precommit_text,
@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from scverse_repo_health.models import CheckResult, RepoData
 
 CATEGORY = "Supply chain"
-ZIZMOR_HOOK_REPO = "zizmorcore/zizmor-pre-commit"
 
 
 def _has_precommit(r: RepoData) -> bool:
@@ -90,24 +89,31 @@ def precommit_pinned(r: RepoData) -> CheckResult:
 
 
 @check(
-    id="security/zizmor",
+    id="security/zizmor-clean",
     tier=Tier.REQUIRED,
     category=CATEGORY,
-    title="zizmor enabled",
-    description="zizmor audits the workflows, via pre-commit or a workflow of its own",
+    title="zizmor audit is clean",
+    # Not "is zizmor configured": the template already brings the hook, so that only ever
+    # confirmed the template. What matters is the audit's verdict — and that it covered the
+    # whole repo, not just the paths a repo's own hook happens to be scoped to.
+    description="A zizmor audit of every workflow, action and Dependabot config reports no findings",
     needs=("cont",),
-    applies_to=has_workflows,
+    applies_to=lambda r: bool(audit_inputs(r.tree)),
 )
-def zizmor_enabled(r: RepoData) -> CheckResult:
-    fix = "https://docs.zizmor.sh/quickstart/"
-    if any(ZIZMOR_HOOK_REPO in str(e.get("repo", "")) for e in precommit_repos(r)):
-        return passed("zizmor pre-commit hook configured", r.blob_url(precommit_path(r)))
-    if "zizmor" in precommit_hook_ids(r):
-        return passed("zizmor pre-commit hook configured", r.blob_url(precommit_path(r)))
-    hits = [p for p, text in r.workflows.items() if "zizmor" in (text or "")]
-    if hits:
-        return passed(f"zizmor runs in `{hits[0]}`", r.blob_url(hits[0]))
-    return failed("zizmor is not configured", fix)
+def zizmor_clean(r: RepoData) -> CheckResult:
+    fix = "https://docs.zizmor.sh/audits/"
+    if (reason := r.is_unavailable("zizmor")) is not None:
+        return unknown(reason, fix)
+    audit = r.zizmor or {}
+    if not audit:
+        return unknown("No zizmor audit was run", fix)
+    scope = f"{plural(audit.get('inputs') or 0, 'file')}, {'online' if audit.get('online') else 'offline'}"
+    if not (count := audit.get("count") or 0):
+        return passed(f"No findings ({scope})", fix)
+    # `findings` is capped for size; `count` is not, so the number always tells the truth
+    # even when the list of audit names behind it is partial.
+    names = sorted({str(f.get("ident")) for f in audit.get("findings") or []})
+    return failed(f"{plural(count, 'finding')} in {scope}: {truncate(names)}", fix)
 
 
 @check(

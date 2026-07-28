@@ -7,6 +7,7 @@ import pytest
 
 from scverse_repo_health.collect import Results
 from scverse_repo_health.models import Status
+from scverse_repo_health.registry import REGISTRY
 from scverse_repo_health.render.site import build_context, render_site, worst
 
 from .conftest import results_bundle
@@ -69,8 +70,8 @@ def data_cells(html: str) -> list[str]:
 
 def test_index_renders_every_cell(site):
     html = (site / "index.html").read_text()
-    # 2 repos × 40 checks, plus one collapsed-summary cell per column group per repo.
-    assert len(data_cells(html)) == 2 * 40
+    # 2 repos × every check, plus one collapsed-summary cell per column group per repo.
+    assert len(data_cells(html)) == 2 * len(REGISTRY)
     assert 'class="cell collapsed-only group-start"' in html
     for name in ("scirpy", "scanpy"):
         assert f'data-repo="{name}"' in html
@@ -83,7 +84,7 @@ def test_cells_carry_a_glyph_and_a_tooltip_not_just_colour(site):
     # Every glyph inside the matrix has a title and an aria-label, so a cell's meaning
     # never rests on colour alone. (Legend glyphs are exempt: they sit beside their text.)
     cells = data_cells(html)
-    assert len(cells) == 2 * 40
+    assert len(cells) == 2 * len(REGISTRY)
     assert all("title=" in tag and "aria-label=" in tag for tag in cells)
 
 
@@ -119,8 +120,8 @@ def test_matrix_rows_all_have_the_same_width(site):
     matrix = html.split('<table class="matrix">', 1)[1].split("</table>", 1)[0]
     parser = Widths()
     parser.feed(matrix)
-    # 1 row header + 40 checks + 1 collapsed summary per column group.
-    expected = 1 + 40 + 6
+    # 1 row header + every check + 1 collapsed summary per column group.
+    expected = 1 + len(REGISTRY) + len(REGISTRY.by_category())
     # The second header row is one short: the corner cell spans into it via rowspan.
     assert parser.rows[0] == expected
     assert parser.rows[1] == expected - 1
@@ -157,11 +158,11 @@ def test_changes_are_marked_against_a_previous_run(tmp_path):
     current = results_bundle(load_repo("scirpy"))
     previous = results_bundle(load_repo("scirpy"))
     # Pretend zizmor was failing last week and dependabot was passing.
-    previous.reports[0].results["security/zizmor"].status = Status.FAIL
+    previous.reports[0].results["security/zizmor-clean"].status = Status.FAIL
     previous.reports[0].results["security/dependabot"].status = Status.PASS
 
     context = build_context(current, previous)
-    assert context["changes"][("scirpy", "security/zizmor")] == "fixed"
+    assert context["changes"][("scirpy", "security/zizmor-clean")] == "fixed"
     assert context["changes"][("scirpy", "security/dependabot")] == "regressed"
 
     render_site(current, tmp_path, previous)

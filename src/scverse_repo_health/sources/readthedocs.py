@@ -101,11 +101,17 @@ class RTDClient:
             "readthedocs_yaml_path": data.get("readthedocs_yaml_path"),
             "home": f"https://app.readthedocs.org/projects/{data.get('slug')}/",
         }
-        out["latest_build"] = await self.latest_build(slug)
+        out["stable_build"] = await self.stable_build(slug)
         return out
 
-    async def latest_build(self, slug: str) -> dict[str, Any] | None:
-        data = await self._get(f"/projects/{slug}/builds/?limit=1")
+    async def stable_build(self, slug: str) -> dict[str, Any] | None:
+        """The most recent build of the ``stable`` version, or ``None`` if there is none.
+
+        Not the project's most recent build: on an active repo that is almost always a
+        pull-request preview (scirpy's latest was version ``714``), which says nothing
+        about whether the docs people actually read still build.
+        """
+        data = await self._get(f"/projects/{slug}/versions/stable/builds/?limit=1")
         results = (data or {}).get("results") or []
         if not results:
             return None
@@ -116,6 +122,7 @@ class RTDClient:
             "state": (build.get("state") or {}).get("code"),
             "finished": build.get("finished"),
             "version": build.get("version"),
+            "commit": build.get("commit"),
             "url": f"https://app.readthedocs.org/projects/{slug}/builds/{build.get('id')}/",
         }
 

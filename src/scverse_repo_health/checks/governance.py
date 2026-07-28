@@ -72,33 +72,6 @@ def osi_license(r: RepoData) -> CheckResult:
 
 
 @check(
-    id="governance/community-files",
-    tier=Tier.RECOMMENDED,
-    category=CATEGORY,
-    title="Community files",
-    description="Code of conduct, contributing guide and issue templates are in place",
-    needs=("meta",),
-)
-def community_files(r: RepoData) -> CheckResult:
-    fix = f"{r.html_url}/community"
-    if (reason := r.is_unavailable("community_profile")) is not None:
-        return unknown(reason, fix)
-    if r.community_profile is None:
-        return unknown("Community profile could not be read", fix)
-    files = r.community_profile.get("files") or {}
-    wanted = {
-        "code of conduct": "code_of_conduct",
-        "contributing guide": "contributing",
-        "issue template": "issue_template",
-    }
-    missing = sorted(label for label, key in wanted.items() if not files.get(key))
-    percent = r.community_profile.get("health_percentage")
-    if missing:
-        return failed(f"Missing {truncate(missing)} (health {percent}%)", fix)
-    return passed(f"All present (health {percent}%)", fix)
-
-
-@check(
     id="governance/description-topics",
     tier=Tier.RECOMMENDED,
     category=CATEGORY,
@@ -118,22 +91,6 @@ def description_and_topics(r: RepoData) -> CheckResult:
     if missing:
         return failed(f"Missing {truncate(missing)}", fix)
     return passed(f"Described, linked and tagged ({len(r.topics)} topics)", fix)
-
-
-@check(
-    id="governance/citation",
-    tier=Tier.INFORMATIONAL,
-    category=CATEGORY,
-    title="CITATION.cff",
-    description="A machine-readable citation file is present",
-    needs=("cont",),
-)
-def citation(r: RepoData) -> CheckResult:
-    if (reason := r.is_unavailable("tree")) is not None:
-        return unknown(reason)
-    if (path := r.find("CITATION.cff", "CITATION.CFF")) is not None:
-        return passed(f"`{path}` present", r.blob_url(path))
-    return warned("No `CITATION.cff`", r.new_file_url("CITATION.cff"))
 
 
 @check(

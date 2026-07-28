@@ -44,6 +44,7 @@ def _options(
     concurrency: int,
     skip_pypi: bool = False,
     skip_rtd: bool = False,
+    skip_zizmor: bool = False,
     ignore_exclusions: bool = False,
 ) -> CollectOptions:
     return CollectOptions(
@@ -54,6 +55,7 @@ def _options(
         concurrency=concurrency,
         skip_pypi=skip_pypi,
         skip_rtd=skip_rtd,
+        skip_zizmor=skip_zizmor,
         ignore_exclusions=ignore_exclusions,
     )
 
@@ -69,6 +71,7 @@ def collect_cmd(
     concurrency: int = 8,
     skip_pypi: bool = False,
     skip_rtd: bool = False,
+    skip_zizmor: bool = False,
     slim: bool = True,
     verbose: bool = False,
 ) -> None:
@@ -92,12 +95,14 @@ def collect_cmd(
         Do not talk to PyPI; the packaging checks render as unknown.
     skip_rtd
         Do not talk to Read the Docs; the docs checks render as unknown.
+    skip_zizmor
+        Do not run the zizmor audit; that check renders as unknown.
     slim
         Drop the raw file contents and API payloads the checks have already read.
         ``--no-slim`` keeps them, which is what you want when debugging a check.
     """
     setup_logging("DEBUG" if verbose else "INFO")
-    opts = _options(org, repo, cache, include_archived, concurrency, skip_pypi, skip_rtd)
+    opts = _options(org, repo, cache, include_archived, concurrency, skip_pypi, skip_rtd, skip_zizmor)
     results = asyncio.run(collect(opts))
     results.write(out, slim=slim)
     stats = summarise(results)
@@ -174,13 +179,14 @@ def run_cmd(
     concurrency: int = 8,
     skip_pypi: bool = False,
     skip_rtd: bool = False,
+    skip_zizmor: bool = False,
     verbose: bool = False,
 ) -> None:
     """Collect and render in one go — what the weekly cron runs."""
     setup_logging("DEBUG" if verbose else "INFO")
     from .render.site import render_site
 
-    opts = _options(org, repo, cache, include_archived, concurrency, skip_pypi, skip_rtd)
+    opts = _options(org, repo, cache, include_archived, concurrency, skip_pypi, skip_rtd, skip_zizmor)
     results = asyncio.run(collect(opts))
     render_site(results, out, _previous(previous))
     stats = summarise(results)
@@ -200,6 +206,7 @@ def check_cmd(
     cache: bool = True,
     skip_pypi: bool = False,
     skip_rtd: bool = False,
+    skip_zizmor: bool = False,
     verbose: bool = False,
 ) -> None:
     """Show one repository's checks as a table. The development loop.
@@ -222,6 +229,7 @@ def check_cmd(
         concurrency=8,
         skip_pypi=skip_pypi,
         skip_rtd=skip_rtd,
+        skip_zizmor=skip_zizmor,
         ignore_exclusions=True,
     )
     results = asyncio.run(collect(opts))

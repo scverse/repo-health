@@ -136,7 +136,6 @@ def test_protection_of_reads_rulesets():
         rulesets=[
             {"type": "deletion"},
             {"type": "non_fast_forward"},
-            {"type": "required_linear_history"},
             {"type": "pull_request", "parameters": {"required_approving_review_count": 2}},
             {
                 "type": "required_status_checks",
@@ -151,7 +150,6 @@ def test_protection_of_reads_rulesets():
     assert protection.requires_pr
     assert protection.review_count == 2
     assert protection.status_checks == ["pre-commit.ci - pr"]
-    assert protection.linear_history
 
 
 def test_protection_of_falls_back_to_classic():
@@ -184,19 +182,20 @@ def _repo_with_build(build: dict | None) -> RepoData:
     return RepoData(
         name="demo",
         tree=["pyproject.toml", ".readthedocs.yaml"],
-        rtd={"slug": "demo", "latest_build": build, "home": "https://app.readthedocs.org/projects/demo/"},
+        rtd={"slug": "demo", "stable_build": build, "home": "https://app.readthedocs.org/projects/demo/"},
     )
 
 
 @pytest.mark.parametrize(
     ("build", "expected"),
     [
-        ({"state": "finished", "success": True, "version": "latest"}, Status.PASS),
-        ({"state": "finished", "success": False, "version": "latest"}, Status.FAIL),
+        ({"state": "finished", "success": True, "version": "stable"}, Status.PASS),
+        ({"state": "finished", "success": False, "version": "stable"}, Status.FAIL),
         # Caught mid-flight: RTD has not decided yet, so neither have we.
-        ({"state": "building", "success": None, "version": "724"}, Status.UNKNOWN),
-        ({"state": "cloning", "success": None, "version": "724"}, Status.UNKNOWN),
-        (None, Status.UNKNOWN),
+        ({"state": "building", "success": None, "version": "stable"}, Status.UNKNOWN),
+        ({"state": "cloning", "success": None, "version": "stable"}, Status.UNKNOWN),
+        # No `stable` version at all, or one that has never built: not a broken build.
+        (None, Status.NA),
     ],
 )
 def test_rtd_build_does_not_call_an_unfinished_build_a_failure(build, expected):
@@ -234,3 +233,150 @@ def test_days_since_is_computed_against_a_given_now():
     assert days_since("2026-07-18T00:00:00Z", now) == 10
     assert days_since(None, now) is None
     assert days_since("not a date", now) is None
+
+
+# -- zizmor ------------------------------------------------------------------------------------
+
+
+def _repo_with_audit(audit: dict | None, *, unavailable: str | None = None) -> RepoData:
+    repo = RepoData(name="demo", tree=[".github/workflows/ci.yaml"], zizmor=audit)
+    if unavailable:
+        repo.unavailable["zizmor"] = unavailable
+    return repo
+
+
+def test_zizmor_clean_passes_on_an_empty_audit():
+    from scverse_repo_health.checks.security import zizmor_clean
+
+    result = zizmor_clean(_repo_with_audit({"count": 0, "findings": [], "inputs": 3, "online": True}))
+    assert result.status is Status.PASS
+    assert "3 files" in result.detail and "online" in result.detail
+
+
+def test_zizmor_clean_reports_the_full_count_not_the_kept_findings():
+    """`findings` is capped for size, so the number has to come from `count`."""
+    from scverse_repo_health.checks.security import zizmor_clean
+
+    audit = {
+        "count": 42,
+        "findings": [{"ident": "unpinned-uses"}, {"ident": "artipacked"}],
+        "inputs": 5,
+        "online": False,
+    }
+    result = zizmor_clean(_repo_with_audit(audit))
+    assert result.status is Status.FAIL
+    assert "42 findings" in result.detail
+    assert "artipacked, unpinned-uses" in result.detail
+
+
+@pytest.mark.parametrize(
+    ("audit", "unavailable"),
+    [(None, "zizmor is not installed"), (None, None)],
+)
+def test_zizmor_clean_is_unknown_when_the_audit_did_not_run(audit, unavailable):
+    """A missing binary or a crashed audit is "we don't know", never a failing repo."""
+    from scverse_repo_health.checks.security import zizmor_clean
+
+    assert zizmor_clean(_repo_with_audit(audit, unavailable=unavailable)).status is Status.UNKNOWN
+
+
+def test_zizmor_clean_does_not_apply_without_anything_to_audit():
+    from scverse_repo_health.registry import REGISTRY
+
+    check = REGISTRY.get("security/zizmor-clean")
+    assert check is not None
+    assert check.run(RepoData(name="demo", tree=["README.md"])).status is Status.NA
+
+
+@pytest.mark.parametrize(
+    ("paths", "expected"),
+    [
+        ([".github/workflows/ci.yml", "README.md"], [".github/workflows/ci.yml"]),
+        (["nested/dir/action.yaml"], ["nested/dir/action.yaml"]),
+        ([".github/dependabot.yml"], [".github/dependabot.yml"]),
+        # A workflow-shaped name outside the workflows directory is not a workflow.
+        (["docs/ci.yml", ".github/workflows/notes.md"], []),
+    ],
+)
+def test_audit_inputs_collects_what_zizmor_collects(paths, expected):
+    from scverse_repo_health.sources.zizmor import audit_inputs
+
+    assert audit_inputs(paths) == expected
+
+
+async def test_audit_runs_the_real_zizmor_and_parses_its_findings():
+    """The one test that shells out: it pins the JSON shape we depend on."""
+    from scverse_repo_health.sources.zizmor import audit
+
+    result = await audit(
+        {
+            ".github/workflows/bad.yml": (
+                "name: bad\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n"
+                '    steps:\n      - run: echo "${{ github.event.issue.title }}"\n'
+            )
+        }
+    )
+    assert result["inputs"] == 1
+    assert result["online"] is False
+    assert result["count"] >= 1
+    idents = {f["ident"] for f in result["findings"]}
+    assert "template-injection" in idents, idents
+    finding = next(f for f in result["findings"] if f["ident"] == "template-injection")
+    assert finding["path"] == ".github/workflows/bad.yml"
+    assert finding["severity"] and finding["url"].startswith("https://")
+
+
+# -- packages.json -------------------------------------------------------------------------------
+
+
+def _listed(category: str, **repo: object) -> RepoData:
+    from scverse_repo_health.sources.scverse import category_of
+
+    entry = {"name": "demo", "category": category, "project_home": "https://github.com/scverse/demo"}
+    return RepoData(
+        name="demo",
+        category=category_of(entry),
+        repo={"full_name": "scverse/demo", **repo},
+        tree=["README.md"],
+        package_entry=entry,
+    )
+
+
+def test_packages_json_applies_to_repos_that_are_not_python_packages():
+    """The website, the template and the governance repo are `core-infrastructure` in the
+    index and have no `pyproject.toml` — and the index is the only reason we know that."""
+    from scverse_repo_health.registry import REGISTRY
+
+    check = REGISTRY.get("template/packages-json")
+    assert check is not None
+    result = check.run(_listed("core-infrastructure"))
+    assert result.status is Status.PASS
+    assert "core-infrastructure" in result.detail
+
+
+def test_packages_json_does_not_warn_about_ecosystem_packages():
+    """`ecosystem` is what the index calls the repos the dashboard groups under "other";
+    the two vocabularies differing is not a finding about the repo."""
+    from scverse_repo_health.checks.template import listed_in_packages_json
+
+    repo = _listed("ecosystem")
+    assert repo.category is Category.OTHER
+    assert listed_in_packages_json(repo).status is Status.PASS
+
+
+def test_packages_json_warns_about_a_category_the_dashboard_cannot_map():
+    from scverse_repo_health.checks.template import listed_in_packages_json
+
+    result = listed_in_packages_json(_listed("core-framwork"))
+    assert result.status is Status.WARN
+    assert "core-framwork" in result.detail
+
+
+def test_packages_json_warns_when_the_licenses_disagree():
+    from scverse_repo_health.checks.template import listed_in_packages_json
+
+    repo = _listed("ecosystem", license={"spdx_id": "MIT"})
+    repo.package_entry["license"] = "BSD-3-Clause"
+    result = listed_in_packages_json(repo)
+    assert result.status is Status.WARN
+    assert "BSD-3-Clause" in result.detail and "MIT" in result.detail

@@ -17,7 +17,7 @@ from ._log import log
 from .config import CoreDevs, ReposConfig
 from .models import CATEGORY_ORDER, RepoData, RepoReport, Status
 from .registry import REGISTRY, run_all
-from .sources import scverse
+from .sources import scverse, zizmor
 from .sources.github import GitHubClient, resolve_token
 from .sources.pypi import PyPIClient
 from .sources.readthedocs import RTDClient
@@ -53,8 +53,9 @@ INTERESTING_FILES = [
     ".codecov.yaml",
     ".codecov.yml",
     "codecov.yml",
+    # zizmor honours a repo's own suppressions; to do that we have to hand it the config.
+    *zizmor.CONFIG_PATHS,
 ]
-WORKFLOW_LIMIT = 25
 
 
 @dataclass(slots=True)
@@ -66,6 +67,7 @@ class CollectOptions:
     concurrency: int = 8
     skip_pypi: bool = False
     skip_rtd: bool = False
+    skip_zizmor: bool = False
     #: Collect even repos listed under `exclusions:` — for `repo-health check <name>`.
     ignore_exclusions: bool = False
 
@@ -226,11 +228,15 @@ async def fetch_repo(  # noqa: C901 - one flat list of endpoint calls
             data.errors.append("git tree truncated; file-based checks may be incomplete")
 
     wanted = [p for p in INTERESTING_FILES if p in data.tree]
-    workflow_paths = [p for p in data.tree if p.startswith(".github/workflows/") and p.endswith((".yml", ".yaml"))][
-        :WORKFLOW_LIMIT
-    ]
-    blobs = await asyncio.gather(*(gh.file(full, p, branch) for p in [*wanted, *workflow_paths]))
-    for path, text in zip([*wanted, *workflow_paths], blobs, strict=True):
+    # Every workflow and every composite action, uncapped: a cap here would silently shrink
+    # what `security/zizmor-clean` audits and what the workflow checks see, and a check that
+    # quietly grades part of a repo is worse than no check. One request per file, and the
+    # ETag cache makes the repeat runs free — 304s do not count against the rate limit.
+    workflow_paths = [p for p in data.tree if p.startswith(".github/workflows/") and p.endswith((".yml", ".yaml"))]
+    action_paths = [p for p in data.tree if p.rsplit("/", 1)[-1] in zizmor.ACTION_NAMES]
+    paths = [*wanted, *workflow_paths, *action_paths]
+    blobs = await asyncio.gather(*(gh.file(full, p, branch) for p in paths))
+    for path, text in zip(paths, blobs, strict=True):
         if text is not None:
             data.files[path] = text
     data.workflows = {p: data.files[p] for p in workflow_paths if p in data.files}
@@ -409,6 +415,27 @@ async def _enrich(  # noqa: PLR0917 - a private helper threading the whole colle
         data.unavailable["pypi"] = "PyPI lookups skipped"
     if opts.skip_rtd:
         data.unavailable["rtd"] = "Read the Docs lookups skipped"
+
+    await _audit_workflows(gh, data, opts)
+
+
+async def _audit_workflows(gh: GitHubClient, data: RepoData, opts: CollectOptions) -> None:
+    """Run zizmor over whatever CI definitions this repo turned out to have."""
+    inputs = {p: t for p in zizmor.audit_inputs(data.tree) if (t := data.files.get(p)) is not None}
+    if not inputs:
+        return  # nothing zizmor would collect; the check reports N/A off the same list
+    if opts.skip_zizmor:
+        data.unavailable["zizmor"] = "zizmor audit skipped"
+        return
+    config = next((p for p in zizmor.CONFIG_PATHS if p in data.files), None)
+    if config is not None:
+        inputs[config] = data.files[config]
+    try:
+        data.zizmor = await zizmor.audit(inputs, token=gh.token, config=config)
+    except zizmor.ZizmorError as exc:
+        # A missing binary or a crashed audit is "we don't know", never "this repo is bad".
+        data.unavailable["zizmor"] = str(exc)
+        data.errors.append(f"zizmor audit failed: {exc}")
 
 
 async def _none() -> None:

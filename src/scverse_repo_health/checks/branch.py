@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from scverse_repo_health.models import Tier, failed, passed, unknown, verdict, warned
+from scverse_repo_health.models import Tier, failed, passed, unknown, verdict
 from scverse_repo_health.registry import check
 
 from ._util import truncate
@@ -34,7 +34,6 @@ class Protection:
     requires_pr: bool = False
     review_count: int = 0
     status_checks: list[str] = field(default_factory=list)
-    linear_history: bool = False
 
 
 def protection_of(r: RepoData) -> Protection | None:
@@ -50,7 +49,6 @@ def protection_of(r: RepoData) -> Protection | None:
             requires_pr=pr is not None,
             review_count=int((pr or {}).get("required_approving_review_count") or 0),
             status_checks=[c.get("context", "") for c in checks],
-            linear_history="required_linear_history" in rules,
         )
     if r.classic_protection:
         classic = r.classic_protection
@@ -62,7 +60,6 @@ def protection_of(r: RepoData) -> Protection | None:
             requires_pr=reviews is not None,
             review_count=int((reviews or {}).get("required_approving_review_count") or 0),
             status_checks=list((classic.get("required_status_checks") or {}).get("contexts") or []),
-            linear_history=(classic.get("required_linear_history") or {}).get("enabled", False),
         )
     return None
 
@@ -167,21 +164,3 @@ def status_checks(r: RepoData) -> CheckResult:
     if protection.status_checks:
         return passed(f"{len(protection.status_checks)} required: {truncate(protection.status_checks)}", fix)
     return failed("No status checks are required to merge", fix)
-
-
-@check(
-    id="branch/linear-history",
-    tier=Tier.INFORMATIONAL,
-    category=CATEGORY,
-    title="Linear history required",
-    description="Merge commits are not allowed on the default branch",
-    needs=("meta", "admin?"),
-)
-def linear_history(r: RepoData) -> CheckResult:
-    fix = _rules_url(r)
-    protection = protection_of(r)
-    if protection is None:
-        if (reason := _unreadable(r)) is not None:
-            return unknown(reason, fix)
-        return warned("Not required", fix)
-    return verdict(protection.linear_history, "Linear history required", "Merge commits allowed", fix_url=fix)

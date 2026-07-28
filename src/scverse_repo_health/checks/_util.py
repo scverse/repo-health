@@ -139,15 +139,6 @@ def precommit_path(repo: RepoData) -> str:
     return repo.find(".pre-commit-config.yaml", ".pre-commit-config.yml") or ".pre-commit-config.yaml"
 
 
-def precommit_hook_ids(repo: RepoData) -> set[str]:
-    return {
-        hook["id"]
-        for entry in precommit_repos(repo)
-        for hook in entry.get("hooks") or []
-        if isinstance(hook, dict) and hook.get("id")
-    }
-
-
 def dependabot_config(repo: RepoData) -> dict[str, Any] | None:
     return load_yaml(repo.file(".github/dependabot.yml") or repo.file(".github/dependabot.yaml"))
 
