@@ -69,7 +69,8 @@
 
 	requiredOnly?.addEventListener("change", () => {
 		const on = requiredOnly.checked;
-		for (const el of matrix.querySelectorAll("[data-tier]")) {
+		// Cells only: the tier badge inside a column header carries `data-tier` too.
+		for (const el of matrix.querySelectorAll(":is(th, td)[data-tier]")) {
 			el.hidden = on && el.dataset.tier !== "required";
 		}
 	});

@@ -32,7 +32,11 @@
 
 	--radius: 4px;
 	--cell: 1.7rem;
-	--head-height: 12.5rem;
+	/* Column labels are set at 45°, so the header only needs sin(45°) ≈ 0.71 of the
+	 * longest label's length — this fits half again as much text as the vertical labels
+	 * it replaces, which is why nothing has to be truncated. It is still finite, though:
+	 * `test_check_titles_fit_the_rotated_header` holds titles to what this clears. */
+	--head-height: 13rem;
 	--font: system-ui, -apple-system, "Segoe UI", sans-serif;
 	--mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
 }
@@ -199,7 +203,7 @@ code {
 .legend abbr {
 	border-bottom: 1px dotted var(--baseline);
 	cursor: help;
-	font-weight: 600;
+	text-decoration: none;
 }
 
 .controls input[type="search"],
@@ -238,6 +242,10 @@ table.matrix {
 	border-collapse: separate;
 	border-spacing: 0;
 	font-size: 0.85rem;
+	/* A 45° label overhangs its own column to the right by as much as it rises, so the
+	 * last few need that much gutter or `.matrix-scroll` clips them. Padding applies
+	 * here only because the collapse mode is `separate`. */
+	padding-right: var(--head-height);
 }
 
 table.matrix th,
@@ -258,7 +266,9 @@ table.matrix td {
 
 .matrix .corner {
 	left: 0;
-	z-index: 5;
+	/* Above every column header — labels and group titles both — so what slides underneath
+	 * it during horizontal scroll is hidden rather than drawn across the repository names. */
+	z-index: 200;
 	min-width: 15rem;
 	text-align: left;
 	padding: 0 0.6rem;
@@ -269,6 +279,9 @@ table.matrix td {
 
 .matrix .colgroup {
 	height: 1.9rem;
+	/* Also above the labels: if one ever outgrows the header — bigger text, a longer
+	 * title — it gets cut off cleanly at this band instead of running over the titles. */
+	z-index: 100;
 	border-left: 1px solid var(--gridline);
 	font-size: 0.78rem;
 	text-transform: uppercase;
@@ -296,28 +309,58 @@ table.matrix td {
 	height: var(--head-height);
 	width: var(--cell);
 	min-width: var(--cell);
+	/* Every header cell is opaque, so without an explicit order each one would paint over
+	 * the label overhanging from its left-hand neighbour and only the last column's label
+	 * would survive. The template counts `--z` down across the row, left to right. */
+	z-index: var(--z, 3);
 	vertical-align: bottom;
 	font-weight: 400;
 	color: var(--text-secondary);
 }
+/* Each label starts on its own column's centre line and ascends to the right at 45°.
+ * Adjacent labels stay `--cell` × sin(45°) ≈ 19px apart measured across the diagonal,
+ * which clears the 13px text, so they never collide however long they get. The header
+ * cell is already `position: sticky`, which is what this is positioned against. */
 .matrix .colhead .rot {
-	writing-mode: vertical-rl;
-	transform: rotate(180deg);
-	display: block;
-	max-height: calc(var(--head-height) - 0.6rem);
-	overflow: hidden;
-	text-overflow: ellipsis;
+	position: absolute;
+	bottom: 0.3rem;
+	left: 50%;
+	transform-origin: 0 100%;
+	transform: rotate(-45deg);
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
 	white-space: nowrap;
-	padding-bottom: 0.35rem;
+	line-height: 1.2;
 	cursor: help;
 }
-.matrix .colhead .tier {
-	color: var(--muted);
+/* The tier is its own token, not the first letter of the title, so it gets a box and a
+ * gap rather than sitting flush against the text. Weight ramps down with importance —
+ * filled, outlined, bare — which reads before the letter does and, unlike a ramp of three
+ * fills, holds up in both themes. The legend shows the same three badges. */
+.tier {
+	flex: none;
+	display: inline-block;
+	min-width: 1.2em;
+	padding: 0 0.15em;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	font-family: var(--mono);
+	font-size: 0.75rem;
 	font-weight: 700;
+	line-height: 1.35;
+	text-align: center;
 }
-.matrix .colgroup .rot {
-	writing-mode: vertical-rl;
-	transform: rotate(180deg);
+.tier[data-tier="required"] {
+	background: color-mix(in srgb, var(--baseline) 55%, var(--surface-1));
+	color: var(--text-primary);
+}
+.tier[data-tier="recommended"] {
+	border-color: var(--baseline);
+	color: var(--text-secondary);
+}
+.tier[data-tier="informational"] {
+	color: var(--muted);
 }
 
 .matrix tr.section th {
@@ -416,13 +459,17 @@ a.glyph:hover,
 	box-shadow: inset 0 0 0 2px var(--good);
 }
 
-.matrix .collapsed-only {
+/* Collapsing swaps a group's columns for a single summary column. These selectors have to
+ * be pinned to cells: `data-group` is also on the toggle button *inside* each group
+ * header, so the unqualified version hid the expander along with the columns, leaving a
+ * collapsed group with no way back other than "Expand all groups". */
+.matrix :is(th, td).collapsed-only {
 	display: none;
 }
-.matrix.has-collapsed [data-group].is-collapsed {
+.matrix.has-collapsed :is(th, td)[data-group].is-collapsed {
 	display: none;
 }
-.matrix.has-collapsed .collapsed-only[data-group].is-collapsed {
+.matrix.has-collapsed :is(th, td).collapsed-only[data-group].is-collapsed {
 	display: table-cell;
 }
 

@@ -40,9 +40,10 @@
   <span class="glyph s-na">–</span> not applicable
   <span class="glyph s-unknown">?</span> unreadable
   <span class="sep"></span>
-  <abbr title="Required — counts towards the score">R</abbr>
-  <abbr title="Recommended">r</abbr>
-  <abbr title="Informational">i</abbr>
+  <span class="tier" data-tier="required">R</span>
+  <abbr title="Counts towards the score">required</abbr>
+  <span class="tier" data-tier="recommended">r</span> recommended
+  <span class="tier" data-tier="informational">i</span> informational
   {% if has_previous %}
     <span class="sep"></span>
     <span class="glyph s-fail changed-regressed">✗</span> newly failing
@@ -82,24 +83,40 @@
             {{ category }} <span class="chevron" aria-hidden="true">▾</span>
           </button>
         </th>
+        {# Collapsed, the group is one column wide, which leaves no room for its name in
+           this band — a `<button>` clips anything taller than itself, so vertical text
+           here rendered as nothing at all. The name moves to the diagonal head below and
+           this stays a bare expander. #}
         <th class="colgroup collapsed-only" data-group="{{ category }}" scope="colgroup">
-          <button type="button" class="colgroup-toggle" data-group="{{ category }}" aria-expanded="false">
-            <span class="rot">{{ category }}</span>
+          <button type="button" class="colgroup-toggle" data-group="{{ category }}"
+                  aria-expanded="false" aria-label="Expand the {{ category }} checks">
+            <span class="chevron" aria-hidden="true">▸</span>
           </button>
         </th>
       {% endfor %}
     </tr>
+    {# The 45° labels overhang the columns to their right, so each header cell has to
+       paint above its right-hand neighbour. `--z` counts down across the row — see the
+       `.colhead` rule. Both the real and the collapsed-summary heads consume one, so the
+       order holds whichever of them is showing. #}
+    {% set z = namespace(top=(specs | length) + (columns | length) + 3) %}
     <tr>
       {% for category, cols in columns.items() %}
         {% for spec in cols %}
-          <th class="colhead" data-group="{{ category }}" data-tier="{{ spec.tier }}" scope="col">
-            <span class="rot" title="{{ spec.description or spec.title }} (needs: {{ spec.needs | join(', ') or 'nothing' }})">
-              <b class="tier">{{ 'R' if spec.tier == Tier.REQUIRED else ('r' if spec.tier == Tier.RECOMMENDED else 'i') }}</b>
-              {{ spec.title }}
+          <th class="colhead" style="--z: {{ z.top }}" data-group="{{ category }}" data-tier="{{ spec.tier }}" scope="col">
+            <span class="rot" title="{{ spec.tier | capitalize }} — {{ spec.description or spec.title }} (needs: {{ spec.needs | join(', ') or 'nothing' }})">
+              <b class="tier" data-tier="{{ spec.tier }}">{{ spec.tier.short }}</b>
+              <span class="label">{{ spec.title }}</span>
             </span>
           </th>
+          {% set z.top = z.top - 1 %}
         {% endfor %}
-        <th class="colhead collapsed-only" data-group="{{ category }}" scope="col"><span class="rot">summary</span></th>
+        <th class="colhead collapsed-only" style="--z: {{ z.top }}" data-group="{{ category }}" scope="col">
+          <span class="rot" title="Worst status across the {{ cols | length }} {{ category }} checks — expand the group for detail">
+            {{ category }}
+          </span>
+        </th>
+        {% set z.top = z.top - 1 %}
       {% endfor %}
     </tr>
   </thead>

@@ -25,6 +25,19 @@ def test_every_check_is_fully_declared(spec: Check):
     assert set(spec.needs) <= set(NEEDS)
 
 
+#: What a 13rem header clears for a 45° label once the tier badge is subtracted: 13rem × √2
+#: ≈ 260pt of label, ~26 of them the badge, the rest at the ~6.3pt an average character of
+#: mixed-case prose takes at 0.85rem. Past this, `--head-height` in `style.css` has to grow
+#: or the dashboard's column labels start being cut off by the group-title band above them.
+#: Being a character count this is only a proxy — a title in caps would still overrun it.
+MAX_TITLE = 36
+
+
+@pytest.mark.parametrize("spec", REGISTRY.all(), ids=lambda s: s.id)
+def test_check_titles_fit_the_rotated_header(spec: Check):
+    assert len(spec.title) <= MAX_TITLE, f"{spec.title!r} is {len(spec.title)} characters"
+
+
 def test_ids_are_unique_and_ordered_by_category():
     ids = [c.id for c in REGISTRY.all()]
     assert len(ids) == len(set(ids))
