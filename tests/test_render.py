@@ -56,11 +56,22 @@ def test_published_results_json_is_slim_but_still_renders(tmp_path):
     ).read_text()
 
 
+#: One matrix cell and the glyph it opens with. Group 1 is the rest of the class list, which
+#: the tests filter on: the first column of a check group also carries `group-start`, and the
+#: collapsed summaries `collapsed-only`.
+CELL = re.compile(r'<td class="cell([^"]*)"[^>]*>\s*<(?:a|span) class="glyph[^>]*>')
+
+
+def data_cells(html: str) -> list[str]:
+    """The check cells, without the one-per-group collapsed summaries."""
+    return [m.group(0) for m in CELL.finditer(html) if "collapsed-only" not in m.group(1)]
+
+
 def test_index_renders_every_cell(site):
     html = (site / "index.html").read_text()
     # 2 repos × 40 checks, plus one collapsed-summary cell per column group per repo.
-    assert html.count('class="cell"') == 2 * 40
-    assert 'class="cell collapsed-only"' in html
+    assert len(data_cells(html)) == 2 * 40
+    assert 'class="cell collapsed-only group-start"' in html
     for name in ("scirpy", "scanpy"):
         assert f'data-repo="{name}"' in html
 
@@ -71,7 +82,7 @@ def test_cells_carry_a_glyph_and_a_tooltip_not_just_colour(site):
         assert glyph in html
     # Every glyph inside the matrix has a title and an aria-label, so a cell's meaning
     # never rests on colour alone. (Legend glyphs are exempt: they sit beside their text.)
-    cells = re.findall(r'<td class="cell"[^>]*>\s*<(?:a|span) class="glyph[^>]*>', html)
+    cells = data_cells(html)
     assert len(cells) == 2 * 40
     assert all("title=" in tag and "aria-label=" in tag for tag in cells)
 

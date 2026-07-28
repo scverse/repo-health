@@ -142,7 +142,9 @@
         {% for category_name, cols in columns.items() %}
           {% for spec in cols %}
             {% set result = report.results.get(spec.id) %}
-            <td class="cell" data-group="{{ category_name }}" data-tier="{{ spec.tier }}">
+            {# `group-start` draws the divider between check groups. The summary cell takes
+               it too: collapsed, it is the only cell its group has left. #}
+            <td class="cell{{ ' group-start' if loop.first }}" data-group="{{ category_name }}" data-tier="{{ spec.tier }}">
               {% if result %}
                 {{ cell(result, none, changes.get((report.repo.name, spec.id))) }}
               {% else %}
@@ -151,7 +153,7 @@
             </td>
           {% endfor %}
           {% set summary = group_status[report.repo.name][category_name] %}
-          <td class="cell collapsed-only" data-group="{{ category_name }}">
+          <td class="cell collapsed-only group-start" data-group="{{ category_name }}">
             <span class="glyph s-{{ summary.status }}" title="{{ summary.detail }}" tabindex="0">{{ summary.status.glyph }}</span>
           </td>
         {% endfor %}

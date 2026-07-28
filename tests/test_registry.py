@@ -38,6 +38,13 @@ def test_check_titles_fit_the_rotated_header(spec: Check):
     assert len(spec.title) <= MAX_TITLE, f"{spec.title!r} is {len(spec.title)} characters"
 
 
+def test_each_group_starts_with_a_required_check():
+    """The dashboard draws each group's divider on the group's first column, so that column
+    has to be one that survives the "required checks only" filter."""
+    for category, checks in REGISTRY.by_category().items():
+        assert checks[0].tier is Tier.REQUIRED, f"{category} starts with {checks[0].id}"
+
+
 def test_ids_are_unique_and_ordered_by_category():
     ids = [c.id for c in REGISTRY.all()]
     assert len(ids) == len(set(ids))

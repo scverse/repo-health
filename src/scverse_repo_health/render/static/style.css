@@ -274,7 +274,9 @@ table.matrix td {
 	padding: 0 0.6rem;
 	vertical-align: bottom;
 	color: var(--text-secondary);
-	border-right: 1px solid var(--gridline);
+	/* Names from data: matched to the group dividers, since it is the boundary that matters
+	 * most and should not read as the weaker of the two. */
+	border-right: 2px solid var(--muted);
 }
 
 .matrix .colgroup {
@@ -282,7 +284,8 @@ table.matrix td {
 	/* Also above the labels: if one ever outgrows the header — bigger text, a longer
 	 * title — it gets cut off cleanly at this band instead of running over the titles. */
 	z-index: 100;
-	border-left: 1px solid var(--gridline);
+	/* Every band cell starts a group, so this is the `.group-start` rule by another name. */
+	border-left: 2px solid var(--muted);
 	font-size: 0.78rem;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
@@ -384,7 +387,7 @@ table.matrix td {
 	text-align: left;
 	font-weight: 400;
 	padding: 0 0.6rem;
-	border-right: 1px solid var(--gridline);
+	border-right: 2px solid var(--muted);
 	border-bottom: 1px solid var(--gridline);
 	white-space: nowrap;
 }
@@ -405,6 +408,18 @@ table.matrix td {
 	text-align: center;
 	border-bottom: 1px solid var(--gridline);
 	border-left: 1px solid var(--gridline);
+}
+
+/* Where one check group ends and the next begins. The rotated labels can't carry this — a
+ * full-height rule through the header would cut across the labels leaning over it — so the
+ * group band draws it above and the cells draw it below, and the eye joins them up.
+ *
+ * `--muted` rather than the `--baseline` the other rules use: against the status tints a
+ * baseline-weight line reads as just another gridline, and being the one grey that is the
+ * same in both themes, it holds up on either surface. */
+.matrix :is(th, td).group-start {
+	border-left-width: 2px;
+	border-left-color: var(--muted);
 }
 
 /* Glyph carries the meaning; the tint is the redundant channel. */
