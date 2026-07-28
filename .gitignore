@@ -1,0 +1,13 @@
+.claude
+.devcontainer
+
+# build & environment
+/site/
+/results.json
+/previous.json
+.venv/
+dist/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.ruff_cache/

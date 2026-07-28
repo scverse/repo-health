@@ -1,0 +1,99 @@
+name: Dashboard
+
+on:
+  schedule:
+    - cron: "17 4 * * 1" # Mondays, 04:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Collect and render
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Mint an installation token for the scverse org
+        id: app-token
+        # zizmor: ignore[github-app] the whole point of this job is to read every
+        # repository in the org, so the token cannot be scoped to a repository list.
+        # It is narrowed the other way instead: every permission below is read-only.
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: scverse # zizmor: ignore[github-app]
+          permission-metadata: read
+          permission-contents: read
+          permission-administration: read
+          permission-dependabot-alerts: read
+          permission-actions: read
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Fetch last week's results
+        # Lets the dashboard highlight what changed. A first run, or a Pages outage,
+        # simply means no comparison — never a failed build.
+        continue-on-error: true
+        run: |
+          curl --fail --silent --show-error --location \
+            --output previous.json \
+            "https://scverse.github.io/repo-health/results.json"
+
+      - name: Collect and render
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          RTD_TOKEN: ${{ secrets.RTD_TOKEN }}
+        run: |
+          if [ -f previous.json ]; then
+            uv run repo-health run --out site/ --previous previous.json
+          else
+            uv run repo-health run --out site/
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+
+  keepalive-job:
+    # GitHub disables scheduled workflows in repositories with no activity for 60 days,
+    # which would silently kill a weekly dashboard. Same pattern as scverse/zulip-bots.
+    name: Keepalive Workflow
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-enable workflow
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: sh
+        run: gh api --verbose -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/dashboard.yaml/enable"

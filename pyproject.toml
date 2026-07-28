@@ -1,0 +1,117 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = [ "hatch-vcs", "hatchling" ]
+
+[project]
+name = "scverse-repo-health"
+description = "Health dashboard for the repositories of the scverse GitHub organisation"
+readme = "README.md"
+license = "MPL-2.0"
+authors = [
+  { name = "scverse", email = "core-team@scverse.org" },
+]
+requires-python = ">=3.12"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dynamic = [ "version" ]
+dependencies = [
+  "cryptography",   # sign GitHub App JWTs, decode Sigstore certs
+  "cyclopts>=3.10",
+  "httpx",
+  "jinja2",
+  "packaging",
+  "pyyaml",
+  "rich",
+]
+urls.Documentation = "https://scverse.github.io/repo-health/"
+urls.Issues = "https://github.com/scverse/repo-health/issues"
+urls.Source = "https://github.com/scverse/repo-health"
+scripts.repo-health = "scverse_repo_health.cli:main"
+
+[dependency-groups]
+dev = [ "pytest", "pytest-asyncio", "ruff" ]
+
+[tool.hatch]
+version.source = "vcs"
+version.fallback-version = "0.0"
+build.targets.wheel.packages = [ "src/scverse_repo_health" ]
+# ship the YAML config inside the wheel too, so an installed copy still works
+build.targets.wheel.force-include."config" = "scverse_repo_health/_config_data"
+
+[tool.ruff]
+line-length = 120
+format.docstring-code-format = true
+lint.select = [
+  "A",
+  "ANN",
+  "ARG",
+  "B",
+  "C",
+  "DTZ",
+  "E",
+  "EM",
+  "F",
+  "FBT",
+  "I",
+  "ICN",
+  "ISC",
+  "N",
+  "PLC",
+  "PLE",
+  "PLR",
+  "PLW",
+  "PT",
+  "Q",
+  "RUF",
+  "S",
+  "SIM",
+  "T",
+  "TC",
+  "TID",
+  "UP",
+  "W",
+  "YTT",
+]
+lint.ignore = [
+  "ANN401",  # decoded JSON really is Any; pretending otherwise would be a lie
+  "ISC001",  # conflicts with formatter
+  "PLR0913", # too many arguments in function definition
+  "S101",    # assert should be allowed
+  "S311",    # we don’t need cryptographically secure RNG
+  "S603",    # subprocess with shell=False should be allowed
+]
+lint.unfixable = [
+  "RUF001", # never “fix” “confusables”
+]
+lint.allowed-confusables = [ "×", "’", "–", "—", "≥" ]
+lint.flake8-type-checking.exempt-modules = []
+lint.flake8-type-checking.runtime-evaluated-decorators = [
+  "cyclopts.App.default",
+]
+lint.flake8-type-checking.strict = true
+lint.isort.known-first-party = [ "scverse_repo_health" ]
+lint.isort.required-imports = [ "from __future__ import annotations" ]
+lint.per-file-ignores."scripts/*" = [ "T201" ]     # these are scripts; printing is the point
+# Command bodies import their heavy dependencies lazily, so `repo-health --help` and
+# `list-checks` stay instant and never touch httpx or jinja2.
+lint.per-file-ignores."src/scverse_repo_health/cli.py" = [ "FBT001", "FBT002", "PLC0415", "PLR0917" ]
+lint.per-file-ignores."tests/*" = [
+  "ANN",     # test signatures are pytest's business
+  "ARG001",  # a fixture may be requested purely for its side effect
+  "PLC0415", # local imports keep each test readable on its own
+  "PLR2004", # magic numbers in assertions are the assertion
+  "PT018",   # composite asserts read fine here
+]
+
+[tool.pyproject-fmt]
+column_width = 120
+
+[tool.pytest.ini_options]
+addopts = [ "--import-mode=importlib" ]
+asyncio_mode = "auto"
+filterwarnings = [ "error" ]
+testpaths = [ "tests" ]

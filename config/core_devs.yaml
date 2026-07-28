@@ -1,0 +1,33 @@
+core_devs:
+- login: canergen
+  name: Can Ergen-Behr
+- login: flying-sheep
+  name: Philipp Angerer
+- login: giovp
+  name: Giovanni Palla
+- login: grst
+  name: Gregor Sturm
+- login: gtca
+  name: Danila Bredikhin
+- login: ilan-gold
+  name: Ilan Gold
+- login: Intron7
+  name: Severin Dicks
+- login: josenimo
+  name: Jose Nimo
+- login: LucaMarconato
+  name: Luca Marconato
+- login: melonora
+  name: Wouter-Michiel Vierdag
+- login: ori-kron-wis
+  name: Ori Kronfeld
+- login: PauBadiaM
+  name: Pau Badia i Mompel
+- login: timtreis
+  name: Tim Treis
+  role: spatialdata-plot & squidpy
+- login: Zethson
+  name: Lukas Heumos
+  role: pertpy & operations
+- login: kaizhang
+  name: Kai Zhang

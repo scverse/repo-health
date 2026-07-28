@@ -1,0 +1,206 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ org }} repo health{% endblock %}
+{% block subtitle %}
+  {{ groups | map(attribute=1) | map('length') | sum }} repositories × {{ specs | length }} checks.
+  Every failing cell links to the page where it gets fixed.
+{% endblock %}
+
+{% macro cell(result, extra_class, change) %}
+  {% set cls = 's-' ~ result.status ~ (' ' ~ extra_class if extra_class else '') ~ (' changed-' ~ change if change else '') %}
+  {% set label = result.status.label ~ (' — ' ~ result.detail if result.detail else '') %}
+  {% if result.fix_url %}
+    <a class="glyph {{ cls }}" href="{{ result.fix_url }}" title="{{ label }}" aria-label="{{ label }}">{{ result.status.glyph }}</a>
+  {% else %}
+    <span class="glyph {{ cls }}" title="{{ label }}" aria-label="{{ label }}" tabindex="0">{{ result.status.glyph }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+
+<section class="tiles" aria-label="Summary">
+  <div class="tile hero">
+    <div class="tile-label">Required checks passing</div>
+    <div class="tile-value">{{ required.percent }}<span class="unit">%</span></div>
+    <div class="tile-note">{{ required.counts[Status.PASS] }} of {{ required.scored }} scored cells</div>
+  </div>
+  {% for category, members in groups %}
+    {% set t = group_tallies[category | string] %}
+    <div class="tile">
+      <div class="tile-label">{{ category.label }}</div>
+      <div class="tile-value">{{ t.percent }}<span class="unit">%</span></div>
+      <div class="tile-note">{{ members | length }} repos · {{ t.failing }} failing required checks</div>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="legend" aria-label="Legend">
+  <span class="glyph s-pass">✓</span> pass
+  <span class="glyph s-fail">✗</span> fail
+  <span class="glyph s-warn">!</span> warning
+  <span class="glyph s-na">–</span> not applicable
+  <span class="glyph s-unknown">?</span> unreadable
+  <span class="sep"></span>
+  <abbr title="Required — counts towards the score">R</abbr>
+  <abbr title="Recommended">r</abbr>
+  <abbr title="Informational">i</abbr>
+  {% if has_previous %}
+    <span class="sep"></span>
+    <span class="glyph s-fail changed-regressed">✗</span> newly failing
+    <span class="glyph s-pass changed-fixed">✓</span> newly fixed
+  {% endif %}
+</section>
+
+<section class="controls" aria-label="Filters">
+  <label>
+    <span class="visually-hidden">Search repositories</span>
+    <input type="search" id="search" placeholder="Filter repositories…" autocomplete="off">
+  </label>
+  <label>
+    <span class="visually-hidden">Group</span>
+    <select id="group-filter">
+      <option value="">All groups</option>
+      {% for category, members in groups %}
+        <option value="{{ category }}">{{ category.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="check"><input type="checkbox" id="failures-only"> Failures only</label>
+  <label class="check"><input type="checkbox" id="required-only"> Required checks only</label>
+  <button type="button" class="ghost" id="collapse-all">Collapse all groups</button>
+  <span class="count" id="visible-count" aria-live="polite"></span>
+</section>
+
+<div class="matrix-scroll">
+<table class="matrix">
+  <caption class="visually-hidden">Repository by check compliance matrix</caption>
+  <thead>
+    <tr>
+      <th class="corner" rowspan="2" scope="col">Repository</th>
+      {% for category, cols in columns.items() %}
+        <th class="colgroup" colspan="{{ cols | length }}" data-group="{{ category }}" scope="colgroup">
+          <button type="button" class="colgroup-toggle" data-group="{{ category }}" aria-expanded="true">
+            {{ category }} <span class="chevron" aria-hidden="true">▾</span>
+          </button>
+        </th>
+        <th class="colgroup collapsed-only" data-group="{{ category }}" scope="colgroup">
+          <button type="button" class="colgroup-toggle" data-group="{{ category }}" aria-expanded="false">
+            <span class="rot">{{ category }}</span>
+          </button>
+        </th>
+      {% endfor %}
+    </tr>
+    <tr>
+      {% for category, cols in columns.items() %}
+        {% for spec in cols %}
+          <th class="colhead" data-group="{{ category }}" data-tier="{{ spec.tier }}" scope="col">
+            <span class="rot" title="{{ spec.description or spec.title }} (needs: {{ spec.needs | join(', ') or 'nothing' }})">
+              <b class="tier">{{ 'R' if spec.tier == Tier.REQUIRED else ('r' if spec.tier == Tier.RECOMMENDED else 'i') }}</b>
+              {{ spec.title }}
+            </span>
+          </th>
+        {% endfor %}
+        <th class="colhead collapsed-only" data-group="{{ category }}" scope="col"><span class="rot">summary</span></th>
+      {% endfor %}
+    </tr>
+  </thead>
+
+  {% for category, members in groups %}
+  <tbody data-category="{{ category }}">
+    <tr class="section">
+      <th colspan="{{ specs | length + columns | length + 1 }}" scope="colgroup">
+        {{ category.label }} <span class="muted">· {{ members | length }} repositories</span>
+      </th>
+    </tr>
+    {% for report in members %}
+      {% set score = repo_scores[report.repo.name] %}
+      <tr data-repo="{{ report.repo.name }}"
+          data-category="{{ category }}"
+          data-failing="{{ 1 if score.failing else 0 }}">
+        <th class="rowhead" scope="row">
+          <a href="repo/{{ report.repo.name }}.html">{{ report.repo.name }}</a>
+          <span class="score" title="{{ score.counts[Status.PASS] }} of {{ score.scored }} required checks passing">
+            {{ score.counts[Status.PASS] }}/{{ score.scored }}
+          </span>
+        </th>
+        {% for category_name, cols in columns.items() %}
+          {% for spec in cols %}
+            {% set result = report.results.get(spec.id) %}
+            <td class="cell" data-group="{{ category_name }}" data-tier="{{ spec.tier }}">
+              {% if result %}
+                {{ cell(result, none, changes.get((report.repo.name, spec.id))) }}
+              {% else %}
+                <span class="glyph s-unknown" title="Not evaluated">?</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+          {% set summary = group_status[report.repo.name][category_name] %}
+          <td class="cell collapsed-only" data-group="{{ category_name }}">
+            <span class="glyph s-{{ summary.status }}" title="{{ summary.detail }}" tabindex="0">{{ summary.status.glyph }}</span>
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+  {% endfor %}
+</table>
+</div>
+
+<p class="empty" id="empty-state" hidden>No repository matches those filters.</p>
+
+<section class="footnotes">
+  {% if meta.failed_repos %}
+  <details open>
+    <summary>{{ meta.failed_repos | length }} repositories could not be collected</summary>
+    <ul class="reasons">
+      {% for failure in meta.failed_repos %}
+        <li><a href="https://github.com/{{ org }}/{{ failure.repo }}">{{ failure.repo }}</a> — {{ failure.error }}</li>
+      {% endfor %}
+    </ul>
+    <p class="muted">These repositories are missing from the matrix above; the numbers exclude them.</p>
+  </details>
+  {% endif %}
+
+  {% if archived %}
+  <details>
+    <summary>{{ archived | length }} archived repositories</summary>
+    <ul class="reasons">
+      {% for report in archived %}
+        <li><a href="repo/{{ report.repo.name }}.html">{{ report.repo.name }}</a> — archived, shown for reference only</li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+
+  {% if excluded %}
+  <details>
+    <summary>{{ excluded | length }} repositories excluded from the dashboard</summary>
+    <ul class="reasons">
+      {% for entry in excluded %}
+        <li><a href="https://github.com/{{ org }}/{{ entry.repo }}">{{ entry.repo }}</a> — {{ entry.reason }}</li>
+      {% endfor %}
+    </ul>
+    <p class="muted">
+      Exclusions live in <code>config/repos.yaml</code>. <code>repo-health audit-exclusions</code>
+      fails when an active repository is in neither that file nor <code>packages.json</code>.
+    </p>
+  </details>
+  {% endif %}
+
+  <details>
+    <summary>What each check means</summary>
+    <table class="catalogue">
+      <thead><tr><th>Check</th><th>Tier</th><th>Needs</th><th>Description</th></tr></thead>
+      <tbody>
+        {% for spec in specs %}
+        <tr id="check-{{ spec.anchor }}">
+          <td><code>{{ spec.id }}</code></td>
+          <td>{{ spec.tier }}</td>
+          <td>{{ spec.needs | join(', ') or '—' }}</td>
+          <td>{{ (spec.description or spec.title) | code }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+</section>
+{% endblock %}

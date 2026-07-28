@@ -1,0 +1,155 @@
+# Which scverse repositories the dashboard scores, and which it deliberately skips.
+#
+# Categories (core-datastructure / core-framework / core-infrastructure) come from
+# scverse.org's packages.json. Everything else in the org must appear below, either in
+# `include` (scored, shown under "Other repositories") or in `exclusions` (listed with a
+# reason in the dashboard footer). `repo-health audit-exclusions` fails when an active,
+# non-fork, public repo is in none of the three — that is what stops a new repository
+# from silently vanishing from the dashboard.
+#
+# Archived repos and forks are handled automatically and need no entry.
+#
+# NOTE: this list was drafted from repository names and descriptions and still wants a
+# maintainer pass. Moving a repo between `include` and `exclusions` is a one-line change.
+
+org: scverse
+
+exclusions:
+  # -- org meta -------------------------------------------------------------------
+  - repo: .github
+    reason: Org-level community health files, not a project
+  - repo: benchmark
+    reason: Ad-hoc benchmarking scripts, not a released package
+  - repo: gpu-ci-config
+    reason: Infrastructure config for the GPU CI AMI
+
+  # -- events, workshops, hackathons ------------------------------------------------
+  - repo: 202510_workshop_GSCN
+    reason: Workshop material
+  - repo: 2025_03_hackathon_owkin
+    reason: Hackathon repository
+  - repo: 2026_03_hackathon_proteomics
+    reason: Hackathon repository
+  - repo: 2026_04_hackathon_padua
+    reason: Hackathon repository
+  - repo: cellpainting2026
+    reason: Event repository
+  - repo: conference-2024
+    reason: Conference material
+  - repo: conference-2025
+    reason: Conference material
+  - repo: event-template
+    reason: Template for event repositories
+  - repo: sc-proteomics2026
+    reason: Event repository
+  - repo: spatialdata-basel-workshop-2024
+    reason: Workshop material
+
+  # -- tutorials and notebooks --------------------------------------------------------
+  # These matter a great deal, but none of the packaging or release standards apply.
+  - repo: anndata-tutorials
+    reason: Tutorial notebooks
+  - repo: cellrank_notebooks
+    reason: Tutorial notebooks
+  - repo: decoupler-tutorials
+    reason: Tutorial notebooks
+  - repo: muon-tutorials
+    reason: Tutorial notebooks
+  - repo: pertpy-tutorials
+    reason: Tutorial notebooks
+  - repo: rapids-singlecell-tutorials
+    reason: Tutorial notebooks
+  - repo: scanpy-tutorials
+    reason: Tutorial notebooks
+  - repo: scvi-tutorials
+    reason: Tutorial notebooks
+  - repo: spatialdata-notebooks
+    reason: Tutorial notebooks
+  - repo: spatialdata-plot-tutorials
+    reason: Tutorial notebooks
+  - repo: squidpy-tutorials
+    reason: Tutorial notebooks
+
+  # -- websites and prose -------------------------------------------------------------
+  - repo: muon-site
+    reason: Website
+  - repo: scvi-tools-site
+    reason: Website
+  - repo: antibody-based-spatial-proteomics-guide
+    reason: Community guide, prose only
+  - repo: single-cell-spatial-proteomics
+    reason: Community collaboration repository, prose only
+
+  # -- examples and generated repos ----------------------------------------------------
+  - repo: cookiecutter-scverse-instance
+    reason: Example output of the template, regenerated automatically
+  - repo: cookiecutter-scverse-presentation
+    reason: Slides introducing the template
+  - repo: simple-scvi
+    reason: Teaching example, not a released package
+
+  # -- data ------------------------------------------------------------------------------
+  - repo: pertpy-datasets
+    reason: Dataset hosting
+
+  # -- not Python ---------------------------------------------------------------------------
+  # The catalogue is built around Python packaging; these need their own standards.
+  - repo: anndata-rs
+    reason: Rust crate
+  - repo: Muon.jl
+    reason: Julia package
+  - repo: rustar-aligner
+    reason: Rust crate
+
+# Active repositories that are not in packages.json but are still scored, under the
+# "Other repositories" group. Listing them here is what makes `audit-exclusions`
+# meaningful: every org repo has been looked at by someone.
+include:
+  - acumen
+  - annbatch
+  - anndata-plot
+  - cellrank
+  - deres
+  - fast-array-utils
+  - formulaic-contrasts
+  - genomic-features
+  - gget
+  - napari-spatialdata
+  - pandas-uuid
+  - prelude-runner
+  - pytometry
+  - rapids-singlecell
+  - repo-health # this repo — it is subject to its own dashboard
+  - scverse-backends
+  - scverse-doc
+  - scverse-io
+  - scverse-misc
+  - scvi-colab
+  - session-info2
+  - shadows
+  - spatial-sample-aggregation
+  - spatialdata-integration-testing
+  - spatialdata-io
+  - spatialdata-plot
+  - zulip-bots
+
+# Intentional deviations. The cell renders grey with this reason on hover instead of red.
+#
+#   some-repo:
+#     packaging/pypi-org: "Published under a partner organisation by agreement"
+waivers:
+  repo-health:
+    # This repo is subject to its own dashboard, and these four are genuine exceptions
+    # rather than gaps: it is org tooling, not a scientific package.
+    template/cruft: "Org tooling, not generated from the package template"
+    template/up-to-date: "Org tooling, not generated from the package template"
+    docs/readthedocs-yaml: "The dashboard itself is the documentation, published to GitHub Pages"
+    packaging/release-workflow: "Not distributed on PyPI; deployed to GitHub Pages"
+
+# PyPI distribution name, where it differs from what `[project] name` says.
+pypi_names: {}
+
+# Read the Docs slug, where it differs from the lowercased repo name.
+# Leave a repo out if it does not use Read the Docs at all — the docs checks then fail on
+# the missing `.readthedocs.yaml`, which is the real problem, rather than five times over.
+rtd_slugs: {}

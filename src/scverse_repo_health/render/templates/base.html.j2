@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}scverse repo health{% endblock %}</title>
+<link rel="stylesheet" href="{{ base }}/static/style.css">
+<script>
+  // Applied before first paint so a chosen theme never flashes the other one.
+  (() => {
+    const saved = localStorage.getItem("repo-health-theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+  })();
+</script>
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-text">
+    <h1><a href="{{ base }}/index.html">{{ org }} repo health</a></h1>
+    <p class="subtitle">{% block subtitle %}{% endblock %}</p>
+  </div>
+  <button type="button" id="theme-toggle" class="ghost" aria-label="Switch colour theme">
+    <span aria-hidden="true">◐</span> Theme
+  </button>
+</header>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+<footer class="colophon">
+  <p>
+    Generated <time datetime="{{ generated }}">{{ generated }}</time>
+    from <a href="{{ base }}/results.json">results.json</a>
+    {% if template and template.latest %}
+      · compared against
+      <a href="{{ template.latest.url }}">cookiecutter-scverse {{ template.latest.tag }}</a>
+    {% endif %}
+    {% if meta.auth %}· authenticated as <code>{{ meta.auth }}</code>{% endif %}
+  </p>
+  <p>
+    Built by <a href="https://github.com/{{ org }}/repo-health">{{ org }}/repo-health</a>.
+    A cell marked <span class="glyph s-unknown">?</span> means the data could not be read,
+    not that the check failed.
+  </p>
+</footer>
+
+<script src="{{ base }}/static/dashboard.js"></script>
+</body>
+</html>

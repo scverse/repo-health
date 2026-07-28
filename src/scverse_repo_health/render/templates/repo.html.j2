@@ -1,0 +1,100 @@
+{% extends "base.html.j2" %}
+{% set repo = report.repo %}
+{% block title %}{{ repo.name }} — {{ org }} repo health{% endblock %}
+{% block subtitle %}
+  <a href="{{ repo.html_url }}">{{ repo.full_name }}</a> · {{ repo.category.label }}
+  {% if repo.archived %}· <span class="pill">archived</span>{% endif %}
+{% endblock %}
+
+{% block content %}
+{% set score = repo_scores[repo.name] %}
+
+<section class="tiles" aria-label="Summary">
+  <div class="tile hero">
+    <div class="tile-label">Required checks passing</div>
+    <div class="tile-value">{{ score.percent }}<span class="unit">%</span></div>
+    <div class="tile-note">{{ score.counts[Status.PASS] }} of {{ score.scored }} scored</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Failing</div>
+    <div class="tile-value">{{ score.failing }}</div>
+    <div class="tile-note">required checks</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Unreadable</div>
+    <div class="tile-value">{{ score.counts[Status.UNKNOWN] }}</div>
+    <div class="tile-note">needs more permissions</div>
+  </div>
+</section>
+
+{% if repo.description %}<p class="lede">{{ repo.description }}</p>{% endif %}
+
+<dl class="facts">
+  <div><dt>Default branch</dt><dd><code>{{ repo.default_branch }}</code></dd></div>
+  {% if repo.pypi and repo.pypi.name %}
+    <div><dt>PyPI</dt><dd><a href="{{ repo.pypi.url }}">{{ repo.pypi.name }} {{ repo.pypi.version or '' }}</a></dd></div>
+  {% endif %}
+  {% if repo.rtd %}
+    <div><dt>Read the Docs</dt><dd><a href="{{ repo.rtd.home }}">{{ repo.rtd.slug }}</a></dd></div>
+  {% endif %}
+  {% if repo.template_status %}
+    <div><dt>Template</dt><dd>
+      {% if repo.template_status.releases_behind %}
+        {{ repo.template_status.releases_behind }} releases behind {{ repo.template_status.latest }}
+      {% elif repo.template_status.commits_behind %}
+        {{ repo.template_status.commits_behind }} commits behind {{ repo.template_status.latest }}
+      {% else %}
+        up to date with {{ repo.template_status.latest }}
+      {% endif %}
+    </dd></div>
+  {% endif %}
+</dl>
+
+{% for category, cols in columns.items() %}
+<section class="checkgroup">
+  <h2>{{ category }}</h2>
+  <table class="detail">
+    <thead>
+      <tr><th class="st"></th><th>Check</th><th class="tier-col">Tier</th><th>Detail</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      {% for spec in cols %}
+        {% set result = report.results.get(spec.id) %}
+        {% if result %}
+        <tr class="s-row-{{ result.status }}">
+          <td class="st"><span class="glyph s-{{ result.status }}" title="{{ result.status.label }}">{{ result.status.glyph }}</span></td>
+          <td>
+            <strong>{{ spec.title }}</strong>
+            <div class="muted"><code>{{ spec.id }}</code> — {{ spec.description | code }}</div>
+          </td>
+          <td class="tier-col">{{ spec.tier }}</td>
+          <td>{{ result.detail | code or '—' }}</td>
+          <td>{% if result.fix_url %}<a href="{{ result.fix_url }}">open</a>{% endif %}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+
+{% if repo.unavailable %}
+<section class="footnotes">
+  <details>
+    <summary>{{ repo.unavailable | length }} endpoints could not be read</summary>
+    <ul class="reasons">
+      {% for key, reason in repo.unavailable.items() %}<li><code>{{ key }}</code> — {{ reason }}</li>{% endfor %}
+    </ul>
+  </details>
+</section>
+{% endif %}
+
+{% if repo.errors %}
+<section class="footnotes">
+  <details>
+    <summary>{{ repo.errors | length }} collection notes</summary>
+    <ul class="reasons">{% for error in repo.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  </details>
+</section>
+{% endif %}
+{% endblock %}
