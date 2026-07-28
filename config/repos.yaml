@@ -116,7 +116,6 @@ include:
   - pandas-uuid
   - prelude-runner
   - pytometry
-  - rapids-singlecell
   - repo-health # this repo — it is subject to its own dashboard
   - scverse-backends
   - scverse-doc
