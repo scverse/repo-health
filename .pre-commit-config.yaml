@@ -8,13 +8,13 @@ minimum_pre_commit_version: 3.0.0
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: cb8c523fd4835aba42af70f4cad5568db4df0b6c # v0.16.0
+    rev: aab412d509121cb5f7533134b7e67f9fab59c682 # v0.16.4
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: 067260dc5fe6ea86b7551bfd6f8b3ba4e6c93129 # v1.28.0
+    rev: 451b56af716f9f0d0c2b816503a3fd0cf8b036fa # v1.29.0
     hooks:
       - id: zizmor
         # The default persona would not have caught `undocumented-permissions`, so the
@@ -22,13 +22,13 @@ repos:
         # `--no-progress` is the hook's own default arg, which `args:` would otherwise drop.
         args: [--no-progress, --persona=pedantic]
   - repo: https://github.com/biomejs/pre-commit
-    rev: f6d5e1fa73430779cef768d00c512fa86162fe6e # v2.5.5
+    rev: 055c65a8144b42a1f56908484127aec0c614fb85 # v2.5.10
     hooks:
       - id: biome-check
-        additional_dependencies: ["@biomejs/biome@2.5.5"]
+        additional_dependencies: ["@biomejs/biome@2.5.10"]
         files: ^src/scverse_repo_health/render/static/.*\.(js|css|json)$
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: d600c142bb19f521ae6a6a345f94a2efd7937759 # v2.26.0
+    rev: cc0b0f8d4107cfe80d6571644e639b05aee29128 # v2.28.1
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/pre-commit-hooks
