@@ -59,7 +59,7 @@ def test_readme_catalogue_matches_the_registry():
     from pathlib import Path
 
     readme = (Path(__file__).parent.parent / "README.md").read_text(encoding="utf-8")
-    rows = re.findall(r"^\| \*\*([Rri])\*\* \| `([a-z-]+/[a-z-]+)` \|", readme, re.MULTILINE)
+    rows = re.findall(r"^\| \*\*([Rri])\*\* \| `([a-z0-9-]+/[a-z0-9-]+)` \|", readme, re.MULTILINE)
     documented = {check_id: tier for tier, check_id in rows}
     assert len(documented) == len(rows), "a check is listed twice in the README"
 

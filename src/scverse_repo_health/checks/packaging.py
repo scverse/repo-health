@@ -6,14 +6,16 @@ Sigstore certificate's SAN names the exact workflow and tag that published the a
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
 from scverse_repo_health.models import Tier, failed, not_applicable, passed, unknown, verdict, warned
 from scverse_repo_health.registry import check
 
-from ._util import is_python_package, iter_steps, load_yaml, truncate
+from ._util import is_python_package, iter_steps, load_yaml, pyproject, truncate
 
 if TYPE_CHECKING:
     from typing import Any
@@ -23,6 +25,8 @@ if TYPE_CHECKING:
 CATEGORY = "Packaging"
 PUBLISH_ACTION = "pypa/gh-action-pypi-publish"
 RECENT_RELEASES = 5
+SPEC0_URL = "https://scientific-python.org/specs/spec-0000/"
+SPEC0_YEARS = 3
 
 
 def _on_pypi(r: RepoData) -> bool:
@@ -136,6 +140,73 @@ def release_workflow(r: RepoData) -> CheckResult:
     if problems:
         return failed(truncate(sorted(set(problems)), 4), fix)
     return passed(f"`{path}` publishes via OIDC from an environment", fix)
+
+
+def _released(releases: list[dict[str, Any]]) -> list[tuple[Version, date]]:
+    """Every Python version endoflife.date reports, with its release date, oldest first."""
+    dated = []
+    for entry in releases:
+        try:
+            dated.append((Version(str(entry["cycle"])), date.fromisoformat(str(entry["releaseDate"]))))
+        except (KeyError, TypeError, ValueError, InvalidVersion):
+            continue
+    return sorted(dated)
+
+
+def _drop_date(released: date) -> date:
+    """SPEC 0 drops a Python version three years after its initial release."""
+    try:
+        return released.replace(year=released.year + SPEC0_YEARS)
+    except ValueError:  # 29 February
+        return released.replace(year=released.year + SPEC0_YEARS, day=released.day - 1)
+
+
+def spec0_minimum_python(releases: list[dict[str, Any]], today: date | None = None) -> Version | None:
+    """The oldest Python SPEC 0 still asks for, being the first release under three years old."""
+    now = today or datetime.now(UTC).date()
+    return next((v for v, released in _released(releases) if _drop_date(released) > now), None)
+
+
+def lowest_python(requires: str, releases: list[dict[str, Any]]) -> Version | None:
+    """The oldest released Python a ``requires-python`` specifier still admits."""
+    try:
+        spec = SpecifierSet(requires)
+    except InvalidSpecifier:
+        return None
+    return next((v for v, _ in _released(releases) if v in spec), None)
+
+
+@check(
+    id="packaging/spec0-python",
+    tier=Tier.REQUIRED,
+    category=CATEGORY,
+    title="SPEC 0 minimum Python",
+    description="`requires-python` has dropped the Python versions SPEC 0 has dropped",
+    needs=("cont", "py"),
+    applies_to=lambda r: r.has_path("pyproject.toml"),
+)
+def spec0_python(r: RepoData) -> CheckResult:
+    if (reason := r.is_unavailable("python_releases")) is not None:
+        return unknown(reason, SPEC0_URL)
+    fix = r.blob_url("pyproject.toml")
+    data = pyproject(r)
+    if data is None:
+        return unknown("Could not read `pyproject.toml`", fix)
+    requires = (data.get("project") or {}).get("requires-python")
+    if not requires:
+        return failed("No `requires-python` in `pyproject.toml`", fix)
+    lowest = lowest_python(str(requires), r.python_releases or [])
+    if lowest is None:
+        return unknown(f'Could not parse `requires-python = "{requires}"`', fix)
+    wanted = spec0_minimum_python(r.python_releases or [])
+    if wanted is None:
+        return unknown("No Python release dates to measure SPEC 0 against", SPEC0_URL)
+    return verdict(
+        lowest >= wanted,
+        f'`requires-python = "{requires}"` is at or above SPEC 0\'s {wanted}',
+        f'`requires-python = "{requires}"` still allows {lowest}; SPEC 0 is at {wanted}',
+        fix_url=SPEC0_URL,
+    )
 
 
 @check(
