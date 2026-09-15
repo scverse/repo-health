@@ -51,6 +51,8 @@ the ETag cache, `--include-archived` adds archived repos, `--previous last-week.
 outlines the cells that changed, `--skip-pypi` / `--skip-rtd` keep the run entirely
 inside GitHub, and `--skip-zizmor` skips the one check that shells out.
 
+`audit-exclusions` also takes `--markdown FILE`, which writes the findings as the monthly issue body and an empty file when there is nothing to say, and `--exit-zero`, which reports without failing the run.
+
 Failing *checks* never set a non-zero exit code — only collection errors do. The
 dashboard is informational and a red cell must not break the weekly cron. When a single
 repository does fail to collect, the run still writes the site (with that repo listed in
@@ -188,9 +190,10 @@ fall back to `/branches/{b}/protection`, which needs `administration:read` — h
    (listed in the footer with a reason). Heuristics get this wrong, which is why it is a
    hand-maintained list: `scverse.github.io` has plenty of code but is a website,
    `anndata-tutorials` has none but matters.
-4. `repo-health audit-exclusions` fails CI when an active, public, non-fork org repo
-   appears in none of the three, so new repos cannot silently vanish from the dashboard.
+4. `repo-health audit-exclusions` reports an active, public, non-fork org repo that appears in none of the three, so new repos cannot silently vanish from the dashboard.
    Archived repos and forks need no entry.
+   It runs on the 1st of each month and on demand from the Actions tab, collecting its findings into a single issue labelled `repo-audit` that is rewritten in place each month and closed once the org is clean.
+   Org membership does not change with a pull request, which is why this is not a PR check.
 
 ### Waivers
 

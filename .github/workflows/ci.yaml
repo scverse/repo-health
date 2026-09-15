@@ -32,20 +32,3 @@ jobs:
       - name: Run the test suite
         # Every test runs against committed fixtures — no network, no credentials.
         run: uv run --all-groups pytest -v
-
-  audit-exclusions:
-    name: Every org repo is accounted for
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-      - name: Check config/repos.yaml against the org listing
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: uv run repo-health audit-exclusions
