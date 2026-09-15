@@ -382,6 +382,61 @@ def test_packages_json_warns_when_the_licenses_disagree():
     assert "BSD-3-Clause" in result.detail and "MIT" in result.detail
 
 
+# -- SPEC 0 ------------------------------------------------------------------------------------
+
+RELEASES = [
+    {"cycle": "3.14", "releaseDate": "2025-10-07"},
+    {"cycle": "3.13", "releaseDate": "2024-10-07"},
+    {"cycle": "3.12", "releaseDate": "2023-10-02"},
+    {"cycle": "3.11", "releaseDate": "2022-10-24"},
+]
+
+
+def _repo_requiring(requires: str | None) -> RepoData:
+    line = f'requires-python = "{requires}"\n' if requires else ""
+    text = f'[project]\nname = "demo"\n{line}'
+    return RepoData(
+        name="demo",
+        tree=["pyproject.toml"],
+        files={"pyproject.toml": text},
+        python_releases=RELEASES,
+    )
+
+
+def test_spec0_minimum_python_moves_with_the_drop_date():
+    """Python 3.12 was released on 2023-10-02, so SPEC 0 stops asking for it three years later."""
+    from datetime import date
+
+    from packaging.version import Version
+
+    from scverse_repo_health.checks.packaging import spec0_minimum_python
+
+    assert spec0_minimum_python(RELEASES, date(2026, 9, 30)) == Version("3.12")
+    assert spec0_minimum_python(RELEASES, date(2026, 10, 3)) == Version("3.13")
+    assert spec0_minimum_python([], date(2026, 9, 30)) is None
+
+
+def test_spec0_python_measures_requires_python_against_that_minimum():
+    from scverse_repo_health.checks.packaging import spec0_minimum_python, spec0_python
+
+    wanted = spec0_minimum_python(RELEASES)
+    assert wanted is not None
+
+    assert spec0_python(_repo_requiring(f">={wanted}")).status is Status.PASS
+    assert spec0_python(_repo_requiring(f">=3.{wanted.minor - 1}")).status is Status.FAIL
+    assert spec0_python(_repo_requiring(None)).status is Status.FAIL
+
+
+def test_spec0_python_is_unknown_without_release_dates():
+    from scverse_repo_health.checks.packaging import spec0_python
+
+    repo = _repo_requiring(">=3.9")
+    repo.python_releases = None
+    repo.unavailable["python_releases"] = "endoflife.date unreachable"
+
+    assert spec0_python(repo).status is Status.UNKNOWN
+
+
 # -- integration testing -------------------------------------------------------------------------
 
 

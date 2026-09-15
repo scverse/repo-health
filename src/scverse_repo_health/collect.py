@@ -17,7 +17,7 @@ from ._log import log
 from .config import CoreDevs, ReposConfig
 from .models import CATEGORY_ORDER, RepoData, RepoReport, Status
 from .registry import REGISTRY, run_all
-from .sources import integration, scverse, zizmor
+from .sources import integration, python_releases, scverse, zizmor
 from .sources.github import GitHubClient, resolve_token
 from .sources.pypi import PyPIClient
 from .sources.readthedocs import RTDClient
@@ -323,11 +323,12 @@ async def collect(opts: CollectOptions | None = None) -> Results:
         PyPIClient(cache=opts.cache) as pypi,
         RTDClient(cache=opts.cache) as rtd,
     ):
-        packages, template, repo_objs, integration_results = await asyncio.gather(
+        packages, template, repo_objs, integration_results, releases = await asyncio.gather(
             scverse.fetch_packages(cache=opts.cache),
             fetch_template(gh),
             gh.org_repos(opts.org),
             integration.fetch_results(gh),
+            python_releases.fetch_releases(cache=opts.cache),
         )
         by_repo = scverse.index_by_repo(packages, opts.org)
 
@@ -339,6 +340,9 @@ async def collect(opts: CollectOptions | None = None) -> Results:
             data = await fetch_repo(gh, repo_obj, category=scverse.category_of(entry), package_entry=entry)
             data.template = template
             data.integration = (integration_results or {}).get(data.name.lower())
+            data.python_releases = releases
+            if releases is None:
+                data.unavailable["python_releases"] = "Python release dates could not be fetched"
             data.core_devs = core_devs.logins
             data.waivers = config.waivers.get(data.name, {})
             await _enrich(gh, pypi, rtd, data, config, template, opts)

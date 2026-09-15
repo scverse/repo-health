@@ -59,7 +59,7 @@ the footer) and *then* exits 2, so CI goes red without costing you the other eig
 
 ## The checks
 
-38 checks in six groups, which are the six column groups on the dashboard. Each declares
+39 checks in six groups, which are the six column groups on the dashboard. Each declares
 a **tier** and what data it **needs**:
 
 | Tier | Meaning |
@@ -78,6 +78,7 @@ a **tier** and what data it **needs**:
 | `actions` | GitHub `actions:read` |
 | `pypi` | pypi.org |
 | `rtd` | readthedocs.org |
+| `py` | endoflife.date — Python release dates, for the SPEC 0 window |
 | `web` | scverse.org's `packages.json` |
 
 A check that applies to a repository but cannot be evaluated renders `?`, never a
@@ -116,6 +117,7 @@ already the finding, and would otherwise be counted five times over.
 | **R** | `packaging/pypi-org` | `ownership.organization` on PyPI is the scverse org | pypi |
 | **R** | `packaging/trusted-publishing` | The latest release carries PEP 740 attestations naming this repo's workflow | pypi |
 | **R** | `packaging/release-workflow` | Publishes via pypa/gh-action-pypi-publish with `id-token: write`, no password, in an environment | cont |
+| **R** | `packaging/spec0-python` | `requires-python` has dropped the Python versions SPEC 0 has dropped | cont py |
 | **R** | `packaging/immutable-releases` | The repository has immutable releases turned on | admin |
 | **r** | `packaging/releases-immutable` | The last few published releases are actually marked immutable | meta |
 | **r** | `packaging/pypi-environment` | A deployment environment named `pypi` exists and has protection rules | admin |

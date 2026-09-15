@@ -163,6 +163,7 @@ _BULK_FIELDS = frozenset(
         "core_devs",
         "actions_permissions",
         "immutable_releases",
+        "python_releases",
         "private_vulnerability_reporting",
         "zizmor",
     }
@@ -228,6 +229,8 @@ class RepoData:
     template: dict[str, Any] | None = None
     #: This package's slice of the integration-testing run, see :mod:`.sources.integration`.
     integration: dict[str, Any] | None = None
+    #: Python release dates, see :mod:`.sources.python_releases`. Shared across repos.
+    python_releases: list[dict[str, Any]] | None = None
     #: How far this repo's ``.cruft.json`` commit is behind the template.
     template_status: dict[str, Any] | None = None
     #: GitHub logins of the scverse core team, from ``config/core_devs.yaml``.
