@@ -6,14 +6,16 @@ Sigstore certificate's SAN names the exact workflow and tag that published the a
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
 from scverse_repo_health.models import Tier, failed, not_applicable, passed, unknown, verdict, warned
 from scverse_repo_health.registry import check
 
-from ._util import is_python_package, iter_steps, load_yaml, truncate
+from ._util import is_python_package, iter_steps, load_yaml, pyproject, truncate
 
 if TYPE_CHECKING:
     from typing import Any
@@ -23,6 +25,15 @@ if TYPE_CHECKING:
 CATEGORY = "Packaging"
 PUBLISH_ACTION = "pypa/gh-action-pypi-publish"
 RECENT_RELEASES = 5
+SPEC0_URL = "https://scientific-python.org/specs/spec-0000/"
+SPEC0_YEARS = 3
+#: Initial release dates; SPEC 0 drops a Python version three years after its own.
+PYTHON_RELEASES = {
+    (3, 11): date(2022, 10, 24),
+    (3, 12): date(2023, 10, 2),
+    (3, 13): date(2024, 10, 7),
+    (3, 14): date(2025, 10, 7),
+}
 
 
 def _on_pypi(r: RepoData) -> bool:
@@ -136,6 +147,56 @@ def release_workflow(r: RepoData) -> CheckResult:
     if problems:
         return failed(truncate(sorted(set(problems)), 4), fix)
     return passed(f"`{path}` publishes via OIDC from an environment", fix)
+
+
+def spec0_minimum_python(today: date | None = None) -> Version:
+    """The oldest Python SPEC 0 still asks for, being the first release under three years old."""
+    now = today or datetime.now(UTC).date()
+    live = [
+        v for v, released in sorted(PYTHON_RELEASES.items()) if released.replace(year=released.year + SPEC0_YEARS) > now
+    ]
+    major, minor = live[0] if live else max(PYTHON_RELEASES)
+    return Version(f"{major}.{minor}")
+
+
+def lowest_python(requires: str) -> Version | None:
+    """The oldest Python a ``requires-python`` specifier still admits."""
+    try:
+        spec = SpecifierSet(requires)
+    except InvalidSpecifier:
+        return None
+    return next((v for minor in range(30) if (v := Version(f"3.{minor}")) in spec), None)
+
+
+@check(
+    id="packaging/spec0-python",
+    tier=Tier.REQUIRED,
+    category=CATEGORY,
+    title="SPEC 0 minimum Python",
+    description="`requires-python` has dropped the Python versions SPEC 0 has dropped",
+    needs=("cont",),
+    applies_to=is_python_package,
+)
+def spec0_python(r: RepoData) -> CheckResult:
+    if not r.has_path("pyproject.toml"):
+        return not_applicable("No `pyproject.toml`")
+    fix = r.blob_url("pyproject.toml")
+    data = pyproject(r)
+    if data is None:
+        return unknown("Could not read `pyproject.toml`", fix)
+    requires = (data.get("project") or {}).get("requires-python")
+    if not requires:
+        return failed("No `requires-python` in `pyproject.toml`", fix)
+    lowest = lowest_python(str(requires))
+    if lowest is None:
+        return unknown(f'Could not parse `requires-python = "{requires}"`', fix)
+    wanted = spec0_minimum_python()
+    return verdict(
+        lowest >= wanted,
+        f'`requires-python = "{requires}"` is at or above SPEC 0\'s {wanted}',
+        f'`requires-python = "{requires}"` still allows {lowest}; SPEC 0 is at {wanted}',
+        fix_url=SPEC0_URL,
+    )
 
 
 @check(
