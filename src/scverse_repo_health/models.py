@@ -227,6 +227,8 @@ class RepoData:
     package_entry: dict[str, Any] | None = None
     #: Latest ``cookiecutter-scverse`` release, shared across repos.
     template: dict[str, Any] | None = None
+    #: This package's slice of the integration-testing run, see :mod:`.sources.integration`.
+    integration: dict[str, Any] | None = None
     #: Python release dates, see :mod:`.sources.python_releases`. Shared across repos.
     python_releases: list[dict[str, Any]] | None = None
     #: How far this repo's ``.cruft.json`` commit is behind the template.
