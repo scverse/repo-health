@@ -142,19 +142,15 @@ def release_workflow(r: RepoData) -> CheckResult:
     return passed(f"`{path}` publishes via OIDC from an environment", fix)
 
 
-def spec0_minimum_python(releases: list[dict[str, Any]], today: date | None = None) -> Version | None:
-    """The oldest Python SPEC 0 still asks for, being the first release under three years old."""
-    now = today or datetime.now(UTC).date()
-    live = []
+def _released(releases: list[dict[str, Any]]) -> list[tuple[Version, date]]:
+    """Every Python version endoflife.date reports, with its release date, oldest first."""
+    dated = []
     for entry in releases:
         try:
-            version = Version(str(entry["cycle"]))
-            released = date.fromisoformat(str(entry["releaseDate"]))
+            dated.append((Version(str(entry["cycle"])), date.fromisoformat(str(entry["releaseDate"]))))
         except (KeyError, TypeError, ValueError, InvalidVersion):
             continue
-        if _drop_date(released) > now:
-            live.append(version)
-    return min(live) if live else None
+    return sorted(dated)
 
 
 def _drop_date(released: date) -> date:
@@ -165,13 +161,19 @@ def _drop_date(released: date) -> date:
         return released.replace(year=released.year + SPEC0_YEARS, day=released.day - 1)
 
 
-def lowest_python(requires: str) -> Version | None:
-    """The oldest Python a ``requires-python`` specifier still admits."""
+def spec0_minimum_python(releases: list[dict[str, Any]], today: date | None = None) -> Version | None:
+    """The oldest Python SPEC 0 still asks for, being the first release under three years old."""
+    now = today or datetime.now(UTC).date()
+    return next((v for v, released in _released(releases) if _drop_date(released) > now), None)
+
+
+def lowest_python(requires: str, releases: list[dict[str, Any]]) -> Version | None:
+    """The oldest released Python a ``requires-python`` specifier still admits."""
     try:
         spec = SpecifierSet(requires)
     except InvalidSpecifier:
         return None
-    return next((v for minor in range(30) if (v := Version(f"3.{minor}")) in spec), None)
+    return next((v for v, _ in _released(releases) if v in spec), None)
 
 
 @check(
@@ -193,7 +195,7 @@ def spec0_python(r: RepoData) -> CheckResult:
     requires = (data.get("project") or {}).get("requires-python")
     if not requires:
         return failed("No `requires-python` in `pyproject.toml`", fix)
-    lowest = lowest_python(str(requires))
+    lowest = lowest_python(str(requires), r.python_releases or [])
     if lowest is None:
         return unknown(f'Could not parse `requires-python = "{requires}"`', fix)
     wanted = spec0_minimum_python(r.python_releases or [])
