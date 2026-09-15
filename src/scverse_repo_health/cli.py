@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from cyclopts import App, Parameter
 from rich.console import Console
@@ -15,6 +15,9 @@ from ._log import log, setup_logging
 from .collect import CollectionFailedError, CollectOptions, Results, collect, summarise
 from .models import Status, Tier
 from .registry import NEEDS, REGISTRY
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 app = App(
     name="repo-health",
@@ -303,11 +306,47 @@ def list_checks_cmd(*, tier: str | None = None) -> None:
     )
 
 
+def _audit_markdown(org: str, unaccounted: Sequence[str], stale: Sequence[str], both: Sequence[str]) -> str:
+    """Render the audit findings as the body of the monthly tracking issue."""
+    unaccounted_blurb = (
+        "Neither in scverse.org's `packages.json` nor in `include:` / `exclusions:`, so the dashboard"
+        " ignores them.\nEach one needs a decision: score it (`include:`) or say why not (`exclusions:`)."
+    )
+    stale_blurb = (
+        "Listed in `config/repos.yaml` but no longer an active org repository.\nArchived repos are"
+        " handled automatically and need no entry."
+    )
+    both_blurb = "In `packages.json` *and* in `config/repos.yaml`.\nThe `config/repos.yaml` entry has no effect."
+    # Stale repos have been renamed or deleted, so linking them would give a 404.
+    sections = [
+        (unaccounted, "Unaccounted for", unaccounted_blurb, True),
+        (stale, "Stale entries", stale_blurb, False),
+        (both, "Listed twice", both_blurb, True),
+    ]
+    lines = [f"`audit-exclusions` found repositories in `{org}` that `config/repos.yaml` does not describe.", ""]
+    for names, heading, blurb, link in sections:
+        if not names:
+            continue
+        lines += [f"### {heading} ({len(names)})", "", blurb, ""]
+        lines += [f"- [ ] [`{name}`](https://github.com/{org}/{name})" if link else f"- [ ] `{name}`" for name in names]
+        lines.append("")
+    return "\n".join(lines)
+
+
 @app.command(name="audit-exclusions")
-def audit_exclusions_cmd(*, org: str = "scverse", cache: bool = True) -> None:
+def audit_exclusions_cmd(
+    *, org: str = "scverse", cache: bool = True, markdown: Path | None = None, exit_zero: bool = False
+) -> None:
     """Fail if an org repo is neither in packages.json nor explicitly excluded.
 
     This is what stops a new repository from silently vanishing from the dashboard.
+
+    Parameters
+    ----------
+    markdown
+        Write the findings to this file as Markdown, empty when there is nothing to report.
+    exit_zero
+        Exit 0 even when a repository is unaccounted for.
     """
     setup_logging()
 
@@ -341,7 +380,10 @@ def audit_exclusions_cmd(*, org: str = "scverse", cache: bool = True) -> None:
         console.print(f"[yellow]listed twice[/] {name} — it is in packages.json and in config/repos.yaml")
     if not unaccounted:
         console.print("[green]Every active org repository is classified, included or excluded.[/]")
-    raise SystemExit(1 if unaccounted else 0)
+    if markdown is not None:
+        report = _audit_markdown(org, unaccounted, stale, both) if (unaccounted or stale or both) else ""
+        markdown.write_text(report, encoding="utf-8")
+    raise SystemExit(1 if unaccounted and not exit_zero else 0)
 
 
 def main() -> None:

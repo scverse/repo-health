@@ -34,6 +34,7 @@ NEEDS = {
     "actions": "GitHub actions:read",
     "pypi": "pypi.org",
     "rtd": "readthedocs.org",
+    "py": "endoflife.date Python release dates",
     "web": "scverse.org packages.json",
 }
 

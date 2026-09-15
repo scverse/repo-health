@@ -24,12 +24,18 @@ exclusions:
   # -- events, workshops, hackathons ------------------------------------------------
   - repo: 202510_workshop_GSCN
     reason: Workshop material
+  - repo: 202609_workshop_GSCN
+    reason: Workshop material
   - repo: 2025_03_hackathon_owkin
     reason: Hackathon repository
   - repo: 2026_03_hackathon_proteomics
     reason: Hackathon repository
   - repo: 2026_04_hackathon_padua
     reason: Hackathon repository
+  - repo: 2026_08_hackathon_cellpainting
+    reason: Hackathon repository
+  - repo: 2026_09_workshop_physalia
+    reason: Workshop material
   - repo: cellpainting2026
     reason: Event repository
   - repo: conference-2024
@@ -38,6 +44,8 @@ exclusions:
     reason: Conference material
   - repo: event-template
     reason: Template for event repositories
+  - repo: gscn2026
+    reason: Website for the GSCN 2026 workshop
   - repo: sc-proteomics2026
     reason: Event repository
   - repo: spatialdata-basel-workshop-2024
@@ -45,11 +53,11 @@ exclusions:
 
   # -- tutorials and notebooks --------------------------------------------------------
   # These matter a great deal, but none of the packaging or release standards apply.
-  - repo: anndata-tutorials
-    reason: Tutorial notebooks
   - repo: cellrank_notebooks
     reason: Tutorial notebooks
   - repo: decoupler-tutorials
+    reason: Tutorial notebooks
+  - repo: liana-tutorials
     reason: Tutorial notebooks
   - repo: muon-tutorials
     reason: Tutorial notebooks
@@ -57,13 +65,11 @@ exclusions:
     reason: Tutorial notebooks
   - repo: rapids-singlecell-tutorials
     reason: Tutorial notebooks
-  - repo: scanpy-tutorials
-    reason: Tutorial notebooks
   - repo: scvi-tutorials
     reason: Tutorial notebooks
-  - repo: spatialdata-notebooks
-    reason: Tutorial notebooks
   - repo: spatialdata-plot-tutorials
+    reason: Tutorial notebooks
+  - repo: spatialdata-tutorials
     reason: Tutorial notebooks
   - repo: squidpy-tutorials
     reason: Tutorial notebooks
@@ -106,12 +112,15 @@ include:
   - acumen
   - annbatch
   - anndata-plot
+  - cell-painting-io
   - cellrank
   - deres
   - fast-array-utils
   - formulaic-contrasts
   - genomic-features
   - gget
+  - liana
+  - mantispy
   - napari-spatialdata
   - pandas-uuid
   - prelude-runner
@@ -124,6 +133,7 @@ include:
   - scvi-colab
   - session-info2
   - shadows
+  - sp-ops
   - spatial-sample-aggregation
   - spatialdata-integration-testing
   - spatialdata-io
