@@ -306,57 +306,24 @@ def list_checks_cmd(*, tier: str | None = None) -> None:
     )
 
 
-async def _audit_exclusions(org: str, *, cache: bool) -> tuple[list[str], list[str], list[str]]:
-    """Compare the live org listing against packages.json and ``config/repos.yaml``.
-
-    Returns the repos accounted for nowhere, the config entries that no longer
-    match an active repo, and the ones classified in both places.
-    """
-    from .config import ReposConfig
-    from .sources import scverse
-    from .sources.github import GitHubClient, resolve_token
-
-    config = ReposConfig.load()
-    token, auth_kind = resolve_token(org)
-    async with GitHubClient(token, auth_kind=auth_kind, cache=cache) as gh:
-        packages, repos = await asyncio.gather(scverse.fetch_packages(cache=cache), gh.org_repos(org))
-    indexed = scverse.index_by_repo(packages, org)
-    # Archived repos are shown in the footer regardless, so they need no decision.
-    live = {r["name"] for r in repos if not r.get("private") and not r.get("fork") and not r.get("archived")}
-    accounted = set(indexed) | config.include | set(config.exclusions)
-    unaccounted = sorted(live - accounted)
-    stale = sorted((config.include | set(config.exclusions)) - live)
-    both = sorted(name for name in indexed if config.is_excluded(name) or name in config.include)
-    return unaccounted, stale, both
-
-
-_UNACCOUNTED_BLURB = (
-    "Neither in scverse.org's `packages.json` nor in `include:` / `exclusions:`, so the"
-    " dashboard silently ignores them.\nEach one needs a decision: score it (`include:`)"
-    " or say why not (`exclusions:`)."
-)
-_STALE_BLURB = (
-    "Listed in `config/repos.yaml` but no longer an active org repository — renamed,"
-    " archived or deleted.\nArchived repos are handled automatically and need no entry."
-)
-_BOTH_BLURB = (
-    "In `packages.json` *and* in `config/repos.yaml`.\nThe `config/repos.yaml` entry has no effect and can go."
-)
-
-
 def _audit_markdown(org: str, unaccounted: Sequence[str], stale: Sequence[str], both: Sequence[str]) -> str:
     """Render the audit findings as the body of the monthly tracking issue."""
-    intro = (
-        f"`repo-health audit-exclusions` found repositories in the `{org}` organisation"
-        " that `config/repos.yaml` does not describe correctly."
+    unaccounted_blurb = (
+        "Neither in scverse.org's `packages.json` nor in `include:` / `exclusions:`, so the dashboard"
+        " ignores them.\nEach one needs a decision: score it (`include:`) or say why not (`exclusions:`)."
     )
+    stale_blurb = (
+        "Listed in `config/repos.yaml` but no longer an active org repository.\nArchived repos are"
+        " handled automatically and need no entry."
+    )
+    both_blurb = "In `packages.json` *and* in `config/repos.yaml`.\nThe `config/repos.yaml` entry has no effect."
     # Stale repos have been renamed or deleted, so linking them would give a 404.
     sections = [
-        (unaccounted, "Unaccounted for", _UNACCOUNTED_BLURB, True),
-        (stale, "Stale entries", _STALE_BLURB, False),
-        (both, "Listed twice", _BOTH_BLURB, True),
+        (unaccounted, "Unaccounted for", unaccounted_blurb, True),
+        (stale, "Stale entries", stale_blurb, False),
+        (both, "Listed twice", both_blurb, True),
     ]
-    lines = [intro, ""]
+    lines = [f"`audit-exclusions` found repositories in `{org}` that `config/repos.yaml` does not describe.", ""]
     for names, heading, blurb, link in sections:
         if not names:
             continue
@@ -368,11 +335,7 @@ def _audit_markdown(org: str, unaccounted: Sequence[str], stale: Sequence[str], 
 
 @app.command(name="audit-exclusions")
 def audit_exclusions_cmd(
-    *,
-    org: str = "scverse",
-    cache: bool = True,
-    markdown: Path | None = None,
-    exit_zero: bool = False,
+    *, org: str = "scverse", cache: bool = True, markdown: Path | None = None, exit_zero: bool = False
 ) -> None:
     """Fail if an org repo is neither in packages.json nor explicitly excluded.
 
@@ -380,19 +343,32 @@ def audit_exclusions_cmd(
 
     Parameters
     ----------
-    org
-        GitHub organisation to scan.
-    cache
-        Use the on-disk ETag cache (``--no-cache`` to bypass it).
     markdown
-        Write the findings to this file as Markdown, empty when there is nothing
-        to report.
+        Write the findings to this file as Markdown, empty when there is nothing to report.
     exit_zero
         Exit 0 even when a repository is unaccounted for.
     """
     setup_logging()
 
-    unaccounted, stale, both = asyncio.run(_audit_exclusions(org, cache=cache))
+    async def go() -> tuple[list[str], list[str], list[str]]:
+        from .config import ReposConfig
+        from .sources import scverse
+        from .sources.github import GitHubClient, resolve_token
+
+        config = ReposConfig.load()
+        token, auth_kind = resolve_token(org)
+        async with GitHubClient(token, auth_kind=auth_kind, cache=cache) as gh:
+            packages, repos = await asyncio.gather(scverse.fetch_packages(cache=cache), gh.org_repos(org))
+        indexed = scverse.index_by_repo(packages, org)
+        # Archived repos are shown in the footer regardless, so they need no decision.
+        live = {r["name"] for r in repos if not r.get("private") and not r.get("fork") and not r.get("archived")}
+        accounted = set(indexed) | config.include | set(config.exclusions)
+        unaccounted = sorted(live - accounted)
+        stale = sorted((config.include | set(config.exclusions)) - live)
+        both = sorted(name for name in indexed if config.is_excluded(name) or name in config.include)
+        return unaccounted, stale, both
+
+    unaccounted, stale, both = asyncio.run(go())
     for name in unaccounted:
         console.print(
             f"[red]unaccounted for[/] {name} — add it to packages.json, "
@@ -404,11 +380,9 @@ def audit_exclusions_cmd(
         console.print(f"[yellow]listed twice[/] {name} — it is in packages.json and in config/repos.yaml")
     if not unaccounted:
         console.print("[green]Every active org repository is classified, included or excluded.[/]")
-
     if markdown is not None:
         report = _audit_markdown(org, unaccounted, stale, both) if (unaccounted or stale or both) else ""
         markdown.write_text(report, encoding="utf-8")
-
     raise SystemExit(1 if unaccounted and not exit_zero else 0)
 
 
