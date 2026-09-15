@@ -27,13 +27,6 @@ PUBLISH_ACTION = "pypa/gh-action-pypi-publish"
 RECENT_RELEASES = 5
 SPEC0_URL = "https://scientific-python.org/specs/spec-0000/"
 SPEC0_YEARS = 3
-#: Initial release dates; SPEC 0 drops a Python version three years after its own.
-PYTHON_RELEASES = {
-    (3, 11): date(2022, 10, 24),
-    (3, 12): date(2023, 10, 2),
-    (3, 13): date(2024, 10, 7),
-    (3, 14): date(2025, 10, 7),
-}
 
 
 def _on_pypi(r: RepoData) -> bool:
@@ -149,14 +142,27 @@ def release_workflow(r: RepoData) -> CheckResult:
     return passed(f"`{path}` publishes via OIDC from an environment", fix)
 
 
-def spec0_minimum_python(today: date | None = None) -> Version:
+def spec0_minimum_python(releases: list[dict[str, Any]], today: date | None = None) -> Version | None:
     """The oldest Python SPEC 0 still asks for, being the first release under three years old."""
     now = today or datetime.now(UTC).date()
-    live = [
-        v for v, released in sorted(PYTHON_RELEASES.items()) if released.replace(year=released.year + SPEC0_YEARS) > now
-    ]
-    major, minor = live[0] if live else max(PYTHON_RELEASES)
-    return Version(f"{major}.{minor}")
+    live = []
+    for entry in releases:
+        try:
+            version = Version(str(entry["cycle"]))
+            released = date.fromisoformat(str(entry["releaseDate"]))
+        except (KeyError, TypeError, ValueError, InvalidVersion):
+            continue
+        if _drop_date(released) > now:
+            live.append(version)
+    return min(live) if live else None
+
+
+def _drop_date(released: date) -> date:
+    """SPEC 0 drops a Python version three years after its initial release."""
+    try:
+        return released.replace(year=released.year + SPEC0_YEARS)
+    except ValueError:  # 29 February
+        return released.replace(year=released.year + SPEC0_YEARS, day=released.day - 1)
 
 
 def lowest_python(requires: str) -> Version | None:
@@ -174,12 +180,12 @@ def lowest_python(requires: str) -> Version | None:
     category=CATEGORY,
     title="SPEC 0 minimum Python",
     description="`requires-python` has dropped the Python versions SPEC 0 has dropped",
-    needs=("cont",),
-    applies_to=is_python_package,
+    needs=("cont", "py"),
+    applies_to=lambda r: r.has_path("pyproject.toml"),
 )
 def spec0_python(r: RepoData) -> CheckResult:
-    if not r.has_path("pyproject.toml"):
-        return not_applicable("No `pyproject.toml`")
+    if (reason := r.is_unavailable("python_releases")) is not None:
+        return unknown(reason, SPEC0_URL)
     fix = r.blob_url("pyproject.toml")
     data = pyproject(r)
     if data is None:
@@ -190,7 +196,9 @@ def spec0_python(r: RepoData) -> CheckResult:
     lowest = lowest_python(str(requires))
     if lowest is None:
         return unknown(f'Could not parse `requires-python = "{requires}"`', fix)
-    wanted = spec0_minimum_python()
+    wanted = spec0_minimum_python(r.python_releases or [])
+    if wanted is None:
+        return unknown("No Python release dates to measure SPEC 0 against", SPEC0_URL)
     return verdict(
         lowest >= wanted,
         f'`requires-python = "{requires}"` is at or above SPEC 0\'s {wanted}',
