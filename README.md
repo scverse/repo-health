@@ -46,7 +46,7 @@ A repo that fails to collect is listed in the footer, the site is still written,
 
 ## The checks
 
-38 checks in six groups, which are the six column groups on the dashboard.
+39 checks in six groups, which are the six column groups on the dashboard.
 Each declares a **tier** and what data it **needs**:
 
 | Tier | Meaning |
@@ -115,6 +115,7 @@ The last four are `–` for a repo with no `.readthedocs.yaml`, which is already
 
 | | Check | What it means | Needs |
 |---|---|---|---|
+| **R** | `integration/upstream-tests` | This package's test suite passes in scverse/integration-testing against upstream core packages | meta |
 | **R** | `security/actions-pinned` | Every `uses:` names a full 40-character commit SHA | cont |
 | **r** | `security/precommit-pinned` | Every `rev:` in `.pre-commit-config.yaml` is a commit SHA | cont |
 | **R** | `security/zizmor-clean` | A zizmor audit of every workflow, action and Dependabot config reports no findings | cont |
