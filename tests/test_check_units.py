@@ -380,3 +380,50 @@ def test_packages_json_warns_when_the_licenses_disagree():
     result = listed_in_packages_json(repo)
     assert result.status is Status.WARN
     assert "BSD-3-Clause" in result.detail and "MIT" in result.detail
+
+
+# -- integration testing -------------------------------------------------------------------------
+
+
+def test_parse_job_pulls_the_package_and_leg_out_of_a_matrix_job():
+    from scverse_repo_health.sources.integration import parse_job
+
+    assert parse_job("test (3.12, false, scanpy, scanpy2)") == ("scanpy", "3.12")
+    assert parse_job("test (3.14, true, rapids-singlecell, rapids-cu13, true)") == ("rapids-singlecell", "3.14 pre")
+    assert parse_job("Keepalive Workflow") is None
+
+
+def test_summarise_groups_by_package_and_records_the_failing_legs():
+    from scverse_repo_health.sources.integration import summarise
+
+    runs = [
+        {"name": "test (3.12, false, SnapATAC2)", "conclusion": "failure"},
+        {"name": "test (3.14, true, SnapATAC2)", "conclusion": "failure"},
+        {"name": "test (3.14, false, SnapATAC2)", "conclusion": "success"},
+        {"name": "test (3.12, false, muon)", "conclusion": "success"},
+        {"name": "Keepalive Workflow", "conclusion": "success"},
+    ]
+    results = summarise(runs)
+
+    assert results["snapatac2"] == {
+        "package": "SnapATAC2",
+        "total": 3,
+        "failed": ["3.12", "3.14 pre"],
+        "url": "https://github.com/scverse/integration-testing/actions",
+    }
+    assert results["muon"]["failed"] == []
+
+
+def test_upstream_tests_is_not_applicable_to_a_package_outside_the_matrix():
+    from scverse_repo_health.checks.integration import upstream_tests
+    from scverse_repo_health.registry import REGISTRY
+
+    spec = REGISTRY.get("integration/upstream-tests")
+    assert spec is not None
+    assert spec.run(RepoData(name="demo")).status is Status.NA
+
+    passing = RepoData(name="muon", integration={"package": "muon", "total": 3, "failed": []})
+    assert upstream_tests(passing).status is Status.PASS
+
+    failing = RepoData(name="snapatac2", integration={"package": "SnapATAC2", "total": 3, "failed": ["3.12"]})
+    assert upstream_tests(failing).status is Status.FAIL

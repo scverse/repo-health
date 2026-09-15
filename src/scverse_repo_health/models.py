@@ -226,6 +226,8 @@ class RepoData:
     package_entry: dict[str, Any] | None = None
     #: Latest ``cookiecutter-scverse`` release, shared across repos.
     template: dict[str, Any] | None = None
+    #: This package's slice of the integration-testing run, see :mod:`.sources.integration`.
+    integration: dict[str, Any] | None = None
     #: How far this repo's ``.cruft.json`` commit is behind the template.
     template_status: dict[str, Any] | None = None
     #: GitHub logins of the scverse core team, from ``config/core_devs.yaml``.
