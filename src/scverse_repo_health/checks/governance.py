@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from scverse_repo_health.models import Tier, failed, passed, unknown, warned
 from scverse_repo_health.registry import check
 
-from ._util import truncate
+from ._util import plural, pyproject, truncate
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from typing import Any
+
     from scverse_repo_health.models import CheckResult, RepoData
 
 CATEGORY = "Governance"
@@ -29,6 +33,8 @@ OSI_LICENSES = {
     "MIT",
     "MPL-2.0",
 }
+#: GPL and AGPL, in SPDX ids, classifiers and free text alike; LGPL is deliberately not matched.
+GPL_RE = re.compile(r"\bA?GPL|(?<!Lesser )General Public License")
 
 
 def parse_ts(value: str | None) -> datetime | None:
@@ -69,6 +75,54 @@ def osi_license(r: RepoData) -> CheckResult:
     if spdx not in OSI_LICENSES:
         return warned(f"`{spdx}` is not in the known-OSI list", url)
     return passed(spdx, url)
+
+
+def gpl_license(dist: Mapping[str, Any]) -> str | None:
+    """The license a distribution declares if every option it offers is GPL or AGPL, else ``None``."""
+    if expression := dist.get("license_expression"):
+        options = re.split(r"\s+OR\s+", expression)
+    else:
+        classifiers = [c.rsplit(" :: ", 1)[-1] for c in dist.get("classifiers") or [] if c != "License :: OSI Approved"]
+        options = classifiers or [text for text in [dist.get("license")] if text]
+    return " OR ".join(options) if options and all(GPL_RE.search(o) for o in options) else None
+
+
+def _is_gpl_repo(r: RepoData) -> bool:
+    return bool(GPL_RE.search((r.repo.get("license") or {}).get("spdx_id") or ""))
+
+
+@check(
+    id="governance/gpl-free",
+    tier=Tier.REQUIRED,
+    category=CATEGORY,
+    title="GPL-free dependencies",
+    description="No runtime dependency, direct or transitive, is GPL-licensed, unless the repo is GPL itself",
+    needs=("cont", "pypi"),
+    applies_to=lambda r: r.has_path("pyproject.toml") and not _is_gpl_repo(r),
+)
+def gpl_free(r: RepoData) -> CheckResult:
+    fix = r.blob_url("pyproject.toml")
+    if (reason := r.is_unavailable("dependencies")) is not None:
+        return unknown(reason, fix)
+    if "dependencies" in ((pyproject(r) or {}).get("project", {}).get("dynamic") or []):
+        return unknown("`dependencies` is dynamic in `pyproject.toml`", fix)
+    if r.dependencies is None:
+        return unknown("Dependencies were not collected", fix)
+    by_name = {d["name"]: d for d in r.dependencies}
+
+    def direct(dist: Mapping[str, Any]) -> str:
+        while dist.get("via") in by_name:
+            dist = by_name[dist["via"]]
+        return dist["name"]
+
+    gpl = [
+        f"`{d['name']}` ({terms})" + (f" via `{root}`" if (root := direct(d)) != d["name"] else "")
+        for d in r.dependencies
+        if (terms := gpl_license(d))
+    ]
+    if gpl:
+        return failed(truncate(gpl), fix)
+    return passed(f"None of {plural(len(r.dependencies), 'runtime dependency', 'runtime dependencies')} is GPL", fix)
 
 
 @check(

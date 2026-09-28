@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from ._log import log
+from .checks._util import pyproject
 from .config import CoreDevs, ReposConfig
 from .models import CATEGORY_ORDER, RepoData, RepoReport, Status
 from .registry import REGISTRY, run_all
@@ -405,10 +406,12 @@ async def _enrich(  # noqa: PLR0917 - a private helper threading the whole colle
 
     name = pypi_name_for(data, config)
     slug = config.rtd_slug(data.name)
+    requirements = (pyproject(data) or {}).get("project", {}).get("dependencies") or []
     pypi_task = pypi.project(name) if name and not opts.skip_pypi else _none()
     rtd_task = rtd.project(slug) if not opts.skip_rtd else _none()
-    pypi_result, rtd_result = await asyncio.gather(pypi_task, rtd_task, return_exceptions=True)
-    for label, result in (("pypi", pypi_result), ("rtd", rtd_result)):
+    deps_task = pypi.dependencies(requirements) if data.has_path("pyproject.toml") and not opts.skip_pypi else _none()
+    fetched = await asyncio.gather(pypi_task, rtd_task, deps_task, return_exceptions=True)
+    for label, result in zip(("pypi", "rtd", "dependencies"), fetched, strict=True):
         if isinstance(result, BaseException):
             # An outage upstream is "we don't know", never "this package is missing".
             data.unavailable[label] = f"{label} lookup failed: {result!r}"
@@ -418,7 +421,7 @@ async def _enrich(  # noqa: PLR0917 - a private helper threading the whole colle
     if name and data.pypi is None and not opts.skip_pypi and "pypi" not in data.unavailable:
         data.pypi = {"name": name, "missing": True}
     if opts.skip_pypi:
-        data.unavailable["pypi"] = "PyPI lookups skipped"
+        data.unavailable["pypi"] = data.unavailable["dependencies"] = "PyPI lookups skipped"
     if opts.skip_rtd:
         data.unavailable["rtd"] = "Read the Docs lookups skipped"
 

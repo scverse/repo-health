@@ -482,3 +482,102 @@ def test_upstream_tests_is_not_applicable_to_a_package_outside_the_matrix():
 
     failing = RepoData(name="snapatac2", integration={"package": "SnapATAC2", "total": 3, "failed": ["3.12"]})
     assert upstream_tests(failing).status is Status.FAIL
+
+
+# -- GPL-free dependencies -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("dist", "expected"),
+    [
+        ({"license_expression": "GPL-3.0-or-later"}, "GPL-3.0-or-later"),
+        ({"license_expression": "AGPL-3.0-only"}, "AGPL-3.0-only"),
+        ({"license_expression": "LGPL-2.1-or-later"}, None),
+        ({"license_expression": "MIT OR GPL-2.0-only"}, None),
+        (
+            {"classifiers": ["License :: OSI Approved :: GNU General Public License v3 (GPLv3)"]},
+            "GNU General Public License v3 (GPLv3)",
+        ),
+        ({"classifiers": ["License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)"]}, None),
+        (
+            {"classifiers": ["License :: OSI Approved", "License :: OSI Approved :: BSD License"], "license": "GPL"},
+            None,
+        ),
+        ({"classifiers": ["License :: OSI Approved"], "license": "GNU GPL v2"}, "GNU GPL v2"),
+        ({"license": "BSD-3-Clause"}, None),
+        ({}, None),
+    ],
+)
+def test_gpl_license_reads_expression_then_classifiers_then_text(dist, expected):
+    from scverse_repo_health.checks.governance import gpl_license
+
+    assert gpl_license(dist) == expected
+
+
+def _repo_depending_on(*dependencies: dict, spdx: str = "BSD-3-Clause", dynamic: bool = False) -> RepoData:
+    toml = '[project]\nname = "demo"\ndynamic = ["dependencies"]\n' if dynamic else '[project]\nname = "demo"\n'
+    return RepoData(
+        name="demo",
+        repo={"full_name": "scverse/demo", "license": {"spdx_id": spdx}},
+        tree=["pyproject.toml"],
+        files={"pyproject.toml": toml},
+        dependencies=[{"via": None, **d} for d in dependencies],
+    )
+
+
+def test_gpl_free_names_the_gpl_dependency_and_the_direct_one_behind_it():
+    from scverse_repo_health.checks.governance import gpl_free
+
+    clean = _repo_depending_on({"name": "numpy", "license_expression": "BSD-3-Clause"})
+    assert gpl_free(clean).status is Status.PASS
+
+    tainted = _repo_depending_on(
+        {"name": "helper", "license_expression": "MIT"},
+        {"name": "shim", "license_expression": "MIT", "via": "helper"},
+        {"name": "igraph", "license": "GNU General Public License (GPL)", "via": "shim"},
+    )
+    result = gpl_free(tainted)
+    assert result.status is Status.FAIL
+    assert result.detail == "`igraph` (GNU General Public License (GPL)) via `helper`"
+
+
+def test_gpl_free_does_not_apply_to_a_gpl_repo():
+    from scverse_repo_health.registry import REGISTRY
+
+    spec = REGISTRY.get("governance/gpl-free")
+    assert spec is not None
+    gpl_dep = {"name": "igraph", "license_expression": "GPL-2.0-or-later"}
+    assert spec.run(_repo_depending_on(gpl_dep, spdx="GPL-3.0")).status is Status.NA
+    assert spec.run(_repo_depending_on(gpl_dep, spdx="LGPL-3.0")).status is Status.FAIL
+
+
+def test_gpl_free_is_unknown_when_the_dependencies_are_not_known():
+    from scverse_repo_health.checks.governance import gpl_free
+
+    skipped = _repo_depending_on()
+    skipped.unavailable["dependencies"] = "PyPI lookups skipped"
+    assert gpl_free(skipped).status is Status.UNKNOWN
+    assert gpl_free(_repo_depending_on(dynamic=True)).status is Status.UNKNOWN
+
+
+async def test_dependencies_walks_transitively_and_skips_optional_extras(tmp_path):
+    from scverse_repo_health.sources.pypi import PyPIClient
+
+    index = {
+        "a": ["b[fast]", "pytest; extra == 'test'"],
+        "b": ["c", "d; extra == 'fast'", "e; extra == 'slow'"],
+        "c": ["a"],
+        "d": [],
+        "e": [],
+    }
+
+    async def get(path: str, accept: str | None = None) -> dict | None:
+        name = path.split("/")[2]
+        return {"info": {"name": name, "license_expression": "MIT", "requires_dist": index[name]}}
+
+    async with PyPIClient(cache=False, cache_path=tmp_path) as pypi:
+        pypi._get = get
+        found = await pypi.dependencies(["a", "not a requirement!"])
+
+    assert {d["name"]: d["via"] for d in found} == {"a": None, "b": "a", "c": "b", "d": "b"}
+    assert "requires_dist" not in found[0]

@@ -154,6 +154,10 @@ async def test_pypi_outage_reads_as_unknown_not_missing():
             msg = "pypi.org is down"
             raise httpx.ConnectError(msg)
 
+        async def dependencies(self, requirements):  # noqa: ARG002
+            msg = "pypi.org is down"
+            raise httpx.ConnectError(msg)
+
     class SilentRTD:
         async def project(self, slug):  # noqa: ARG002
             return None
@@ -173,6 +177,8 @@ async def test_pypi_outage_reads_as_unknown_not_missing():
     assert repo.pypi is None
     assert "pypi" in repo.unavailable
     assert run_all(repo)["packaging/pypi-org"].status is Status.UNKNOWN
+    assert "dependencies" in repo.unavailable
+    assert run_all(repo)["governance/gpl-free"].status is Status.UNKNOWN
 
 
 def test_category_from_packages_json():

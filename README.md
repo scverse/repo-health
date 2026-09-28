@@ -41,7 +41,7 @@ A repo that fails to collect is listed in the footer, the site is still written,
 
 ## The checks
 
-39 checks in six groups, which are the six column groups on the dashboard.
+40 checks in six groups, which are the six column groups on the dashboard.
 Each declares a **tier** and what data it **needs**:
 
 | Tier | Meaning |
@@ -136,6 +136,7 @@ Checks that do not apply, such as packaging checks on a repo with no `pyproject.
 | | Check | What it means | Needs |
 |---|---|---|---|
 | **R** | `governance/license` | The repo carries a recognised OSI-approved license | meta |
+| **R** | `governance/gpl-free` | No runtime dependency, direct or transitive, is GPL-licensed, unless the repo is GPL itself | cont pypi |
 | **r** | `governance/description-topics` | The repo has a description, a homepage and the `scverse` topic | meta |
 | **i** | `governance/maintained` | Pushed to within the last year | meta |
 

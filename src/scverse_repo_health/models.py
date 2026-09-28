@@ -161,6 +161,7 @@ _BULK_FIELDS = frozenset(
         "tree",
         "workflows",
         "core_devs",
+        "dependencies",
         "actions_permissions",
         "immutable_releases",
         "python_releases",
@@ -221,6 +222,8 @@ class RepoData:
     zizmor: dict[str, Any] | None = None
     #: PyPI data, see :mod:`scverse_repo_health.sources.pypi`.
     pypi: dict[str, Any] | None = None
+    #: Runtime dependencies and their licences, transitively, see :meth:`.sources.pypi.PyPIClient.dependencies`.
+    dependencies: list[dict[str, Any]] | None = None
     #: Read the Docs data, see :mod:`scverse_repo_health.sources.readthedocs`.
     rtd: dict[str, Any] | None = None
     #: This repo's entry in scverse.org's ``packages.json``, if listed.
