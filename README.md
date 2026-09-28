@@ -140,9 +140,6 @@ Checks that do not apply, such as packaging checks on a repo with no `pyproject.
 | **r** | `governance/description-topics` | The repo has a description, a homepage and the `scverse` topic | meta |
 | **i** | `governance/maintained` | Pushed to within the last year | meta |
 
-`governance/gpl-free` follows `[project] dependencies` through the latest release of each package on PyPI, leaving out optional extras.
-LGPL counts as free, and so does a package that offers a non-GPL option such as `MIT OR GPL-2.0-only`.
-
 ## Repository selection
 
 1. `GET /orgs/scverse/repos`, dropping private repos and forks.
