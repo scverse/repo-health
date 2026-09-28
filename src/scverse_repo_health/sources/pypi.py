@@ -1,4 +1,4 @@
-"""PyPI: project ownership and PEP 740 publish provenance.
+"""PyPI: project ownership, PEP 740 publish provenance and dependency licences.
 
 Two facts we want are not in the ordinary JSON API:
 
@@ -13,17 +13,20 @@ Two facts we want are not in the ordinary JSON API:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import re
 from typing import TYPE_CHECKING
 
 import httpx
+from packaging.requirements import InvalidRequirement, Requirement
 
 from scverse_repo_health._log import log
 
 from ._http import DiskCache, Throttle, cache_dir
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from pathlib import Path
     from typing import Any, Self
 
@@ -63,6 +66,7 @@ class PyPIClient:
         self.cache = DiskCache(cache_path or cache_dir() / "pypi", enabled=cache)
         self.cache.directory.mkdir(parents=True, exist_ok=True)
         self.throttle = Throttle(concurrency)
+        self._releases: dict[str, asyncio.Task[dict[str, Any] | None]] = {}
         self._client = httpx.AsyncClient(
             base_url=BASE,
             timeout=30,
@@ -151,6 +155,65 @@ class PyPIClient:
             "san_parts": parse_san(san) if san else None,
             "files_with_provenance": len(files),
         }
+
+    async def dependencies(self, requirements: Iterable[str]) -> list[dict[str, Any]]:
+        """Every distribution ``requirements`` pull in, transitively, leaving out optional extras.
+
+        Each entry's ``via`` names the distribution that first pulled it in, ``None`` for a direct dependency.
+        Dependencies come from each distribution's latest release rather than a resolved environment.
+        """
+        found: dict[str, dict[str, Any]] = {}
+        seen: set[tuple[str, str]] = set()
+        pending = _wanted(requirements, extra="", via=None)
+        while pending:
+            fresh: dict[tuple[str, str], str | None] = {}
+            for key, via in pending:
+                if key not in seen:
+                    fresh.setdefault(key, via)
+            seen.update(fresh)
+            infos = await asyncio.gather(*(self._latest(name) for name, _extra in fresh))
+            pending = []
+            for ((name, extra), via), info in zip(fresh.items(), infos, strict=True):
+                if info is None:
+                    continue
+                entry = found.setdefault(name, {k: v for k, v in info.items() if k != "requires_dist"} | {"via": via})
+                pending += _wanted(info["requires_dist"], extra=extra, via=entry["name"])
+        return list(found.values())
+
+    def _latest(self, name: str) -> asyncio.Task[dict[str, Any] | None]:
+        """Licence and requirements of ``name``'s latest release, fetched once per run."""
+        if name not in self._releases:
+            self._releases[name] = asyncio.ensure_future(self._fetch_latest(name))
+        return self._releases[name]
+
+    async def _fetch_latest(self, name: str) -> dict[str, Any] | None:
+        meta = await self._get(f"/pypi/{name}/json")
+        if meta is None:
+            return None
+        info = meta.get("info") or {}
+        return {
+            "name": info.get("name") or name,
+            "version": info.get("version"),
+            "license_expression": info.get("license_expression"),
+            "license": _first_line(info.get("license")),
+            "classifiers": [c for c in info.get("classifiers") or [] if c.startswith("License ::")],
+            "requires_dist": info.get("requires_dist") or [],
+        }
+
+
+def _wanted(specs: Iterable[str], *, extra: str, via: str | None) -> list[tuple[tuple[str, str], str | None]]:
+    """``((name, extra), via)`` for each of ``specs`` that applies when installing ``extra``."""
+    out: list[tuple[tuple[str, str], str | None]] = []
+    for spec in specs:
+        try:
+            req = Requirement(spec)
+        except InvalidRequirement:
+            continue
+        if req.marker is not None and not req.marker.evaluate({"extra": extra}):
+            continue
+        name = normalise(req.name)
+        out += [((name, e), via) for e in ("", *sorted(req.extras))]
+    return out
 
 
 def _first_line(text: str | None) -> str | None:
