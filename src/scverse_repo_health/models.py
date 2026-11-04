@@ -152,7 +152,6 @@ _BULK_FIELDS = frozenset(
     {
         "check_runs",
         "classic_protection",
-        "community_profile",
         "dependabot_alerts",
         "environments",
         "files",
@@ -210,7 +209,6 @@ class RepoData:
     rulesets: list[dict[str, Any]] | None = None
     classic_protection: dict[str, Any] | None = None
     releases: list[dict[str, Any]] = field(default_factory=list)
-    community_profile: dict[str, Any] | None = None
     environments: list[dict[str, Any]] | None = None
     actions_permissions: dict[str, Any] | None = None
     immutable_releases: dict[str, Any] | None = None

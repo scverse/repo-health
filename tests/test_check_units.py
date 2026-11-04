@@ -10,6 +10,7 @@ from scverse_repo_health.checks._util import is_sha, iter_uses, load_yaml, preco
 from scverse_repo_health.checks.branch import protection_of
 from scverse_repo_health.checks.governance import days_since
 from scverse_repo_health.checks.security import actions_pinned, dangerous_triggers
+from scverse_repo_health.checks.template import autofix_ci
 from scverse_repo_health.models import Category, RepoData, Status
 from scverse_repo_health.sources.pypi import normalise, parse_san
 
@@ -115,6 +116,13 @@ jobs:
 """
     )
     assert dangerous_triggers(unsafe).status is Status.FAIL
+
+
+def test_autofix_ci_finds_the_action():
+    autofix = f"jobs:\n  lint:\n    steps:\n      - uses: autofix-ci/action@{SHA}\n"
+    lint_only = f"jobs:\n  lint:\n    steps:\n      - uses: actions/checkout@{SHA}\n"
+    assert autofix_ci(repo_with_workflows(autofix=autofix, test=lint_only)).status is Status.PASS
+    assert autofix_ci(repo_with_workflows(test=lint_only)).status is Status.FAIL
 
 
 def test_precommit_repos_reads_the_config():
