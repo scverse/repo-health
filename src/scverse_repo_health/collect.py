@@ -245,7 +245,6 @@ async def fetch_repo(  # noqa: C901 - one flat list of endpoint calls
     endpoints: dict[str, tuple[str, dict[str, Any] | None, bool]] = {
         "rulesets": (f"/repos/{full}/rules/branches/{branch}", None, False),
         "releases": (f"/repos/{full}/releases", {"per_page": 10}, False),
-        "community_profile": (f"/repos/{full}/community/profile", None, False),
         "immutable_releases": (f"/repos/{full}/immutable-releases", None, True),
         "environments": (f"/repos/{full}/environments", None, True),
         "actions_permissions": (f"/repos/{full}/actions/permissions/workflow", None, True),
@@ -265,7 +264,6 @@ async def fetch_repo(  # noqa: C901 - one flat list of endpoint calls
 
     data.rulesets = results["rulesets"][0] if isinstance(results["rulesets"][0], list) else None
     data.releases = results["releases"][0] or []
-    data.community_profile = results["community_profile"][0]
     data.immutable_releases = results["immutable_releases"][0]
     data.environments = _environments(results["environments"][0])
     data.actions_permissions = results["actions_permissions"][0]

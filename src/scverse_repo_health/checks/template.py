@@ -17,7 +17,7 @@ from scverse_repo_health.models import (
 )
 from scverse_repo_health.registry import check
 
-from ._util import is_python_package, pyproject, truncate
+from ._util import is_python_package, iter_uses, pyproject, truncate
 
 if TYPE_CHECKING:
     from scverse_repo_health.models import CheckResult, RepoData
@@ -139,27 +139,20 @@ def src_layout(r: RepoData) -> CheckResult:
 
 
 @check(
-    id="template/pre-commit-ci",
+    id="template/autofix-ci",
     tier=Tier.RECOMMENDED,
     category=CATEGORY,
-    title="pre-commit.ci enabled",
-    description="pre-commit.ci runs on pull requests",
-    needs=("meta",),
+    title="autofix.ci enabled",
+    description="A workflow runs pre-commit and pushes its fixes with `autofix-ci/action`",
+    needs=("cont",),
     applies_to=lambda r: r.has_path(".pre-commit-config.yaml") or r.has_path(".pre-commit-config.yml"),
 )
-def precommit_ci(r: RepoData) -> CheckResult:
-    fix = "https://pre-commit.ci/"
-    if (reason := r.is_unavailable("check_runs")) is not None:
-        return unknown(reason, fix)
-    names = [n for n in r.check_runs if "pre-commit.ci" in n.lower()]
-    required = _required_status_checks(r)
-    if names:
-        return passed(f"Saw check run {names[0]!r}", fix)
-    if any("pre-commit" in c.lower() for c in required):
-        return passed("Listed among required status checks", fix)
-    if not r.check_runs:
-        return unknown("No check runs on the tip of the default branch to look at", fix)
-    return failed("No pre-commit.ci check run on the default branch", fix)
+def autofix_ci(r: RepoData) -> CheckResult:
+    fix = "https://cookiecutter-scverse-instance.readthedocs.io/page/template_usage.html#autofix-ci"
+    paths = sorted({use.path for use in iter_uses(r) if use.action == "autofix-ci/action"})
+    if paths:
+        return passed(f"`autofix-ci/action` runs in {truncate(paths)}", fix)
+    return failed("No workflow uses `autofix-ci/action`", fix)
 
 
 @check(
@@ -229,15 +222,3 @@ def listed_in_packages_json(r: RepoData) -> CheckResult:
     if problems:
         return warned(truncate(problems), fix)
     return passed(f"Listed under {listed or 'no category'}", fix)
-
-
-def _required_status_checks(r: RepoData) -> list[str]:
-    """Names of required status checks, from rulesets or classic protection."""
-    names: list[str] = []
-    for rule in r.rulesets or []:
-        if rule.get("type") == "required_status_checks":
-            params = rule.get("parameters") or {}
-            names += [c.get("context", "") for c in params.get("required_status_checks") or []]
-    classic = (r.classic_protection or {}).get("required_status_checks") or {}
-    names += list(classic.get("contexts") or [])
-    return [n for n in names if n]
