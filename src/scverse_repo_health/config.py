@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -88,34 +87,3 @@ class ReposConfig:
 
     def rtd_slug(self, repo: str) -> str:
         return self.rtd_slugs.get(repo, repo.lower())
-
-
-@dataclass(slots=True)
-class CoreDevs:
-    """``config/core_devs.yaml``: hand-maintained list of the scverse core team.
-
-    Deliberately a committed file rather than something read from scverse.org at run
-    time: the dashboard must not depend on the website's page structure.
-    """
-
-    #: GitHub login -> display name. The name is for humans reading the file; only the
-    #: logins are used, and they are compared case-insensitively.
-    devs: dict[str, str] = field(default_factory=dict)
-
-    @classmethod
-    def load(cls, path: Path | None = None) -> CoreDevs:
-        raw = _load_yaml(path or (config_dir() / "core_devs.yaml"))
-        entries = raw.get("core_devs") or []
-        return cls(devs={d["login"]: d.get("name", d["login"]) for d in entries if d.get("login")})
-
-    @property
-    def logins(self) -> list[str]:
-        return sorted(self.devs)
-
-    def is_core_dev(self, username: str) -> bool:
-        return username.lower() in {d.lower() for d in self.devs}
-
-
-@cache
-def load_config() -> tuple[ReposConfig, CoreDevs]:
-    return ReposConfig.load(), CoreDevs.load()

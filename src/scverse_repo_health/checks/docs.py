@@ -2,8 +2,9 @@
 
 Read the Docs *organizations* are a Business-plan feature and no scverse project has one,
 so "does scverse control these docs" is answered indirectly: the RTD project must point at
-this GitHub repo, and at least two of its maintainers must be scverse core devs (per
-`config/core_devs.yaml`).
+this GitHub repo, and the scverse-bot technical account must be one of its maintainers, so
+access can be restored when a maintainer leaves. On RTD that account is called `scverse`;
+it signs in through the `scverse-bot` GitHub profile.
 """
 
 from __future__ import annotations
@@ -19,8 +20,10 @@ if TYPE_CHECKING:
     from scverse_repo_health.models import CheckResult, RepoData
 
 CATEGORY = "Documentation"
-MIN_CORE_DEV_MAINTAINERS = 2
+#: RTD username of the account that signs in through the `scverse-bot` GitHub profile.
+RTD_BOT = "scverse"
 RTD_SETTINGS = "https://app.readthedocs.org/dashboard/{slug}/edit/"
+RTD_USERS = "https://app.readthedocs.org/dashboard/{slug}/users/"
 
 
 def _has_rtd(r: RepoData) -> bool:
@@ -77,31 +80,26 @@ def rtd_linked(r: RepoData) -> CheckResult:
 
 
 @check(
-    id="docs/rtd-core-devs",
+    id="docs/rtd-scverse-bot",
     tier=Tier.REQUIRED,
     category=CATEGORY,
-    title="≥2 core devs on RTD",
-    description="At least two scverse core devs can administer the RTD project",
+    title="scverse-bot on RTD",
+    description="The scverse-bot account is a maintainer of the RTD project",
     needs=("rtd",),
     applies_to=_has_rtd,
 )
-def rtd_core_devs(r: RepoData) -> CheckResult:
+def rtd_scverse_bot(r: RepoData) -> CheckResult:
     if (reason := r.is_unavailable("rtd")) is not None:
         return unknown(reason)
     if not r.rtd:
         return failed("No Read the Docs project to inspect")
-    known = {login.lower() for login in r.core_devs}
-    if not known:
-        return unknown("`config/core_devs.yaml` is empty")
     users = r.rtd.get("users") or []
-    core = [u for u in users if u.lower() in known]
-    fix = RTD_SETTINGS.format(slug=r.rtd.get("slug"))
-    detail = f"{len(core)} of {len(users)} maintainers are core devs"
-    if core:
-        detail += f" ({truncate(core)})"
-    if len(core) >= MIN_CORE_DEV_MAINTAINERS:
-        return passed(detail, fix)
-    return failed(f"{detail}; at least {MIN_CORE_DEV_MAINTAINERS} required", fix)
+    return verdict(
+        any(u.lower() == RTD_BOT for u in users),
+        f"`{RTD_BOT}` is a maintainer",
+        f"`{RTD_BOT}` is not among the maintainers ({truncate(users) or 'none'})",
+        fix_url=RTD_USERS.format(slug=r.rtd.get("slug")),
+    )
 
 
 @check(

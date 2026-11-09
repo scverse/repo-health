@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from ._log import log
 from .checks._util import pyproject
-from .config import CoreDevs, ReposConfig
+from .config import ReposConfig
 from .models import CATEGORY_ORDER, RepoData, RepoReport, Status
 from .registry import REGISTRY, run_all
 from .sources import integration, python_releases, scverse, zizmor
@@ -313,7 +313,7 @@ def pypi_name_for(data: RepoData, config: ReposConfig) -> str | None:
 
 async def collect(opts: CollectOptions | None = None) -> Results:
     opts = opts or CollectOptions()
-    config, core_devs = ReposConfig.load(), CoreDevs.load()
+    config = ReposConfig.load()
     token, auth_kind = resolve_token(opts.org)
     log.info(f"authenticating as: {auth_kind}")
 
@@ -342,7 +342,6 @@ async def collect(opts: CollectOptions | None = None) -> Results:
             data.python_releases = releases
             if releases is None:
                 data.unavailable["python_releases"] = "Python release dates could not be fetched"
-            data.core_devs = core_devs.logins
             data.waivers = config.waivers.get(data.name, {})
             await _enrich(gh, pypi, rtd, data, config, template, opts)
             return RepoReport(repo=data, results=run_all(data))
@@ -367,7 +366,6 @@ async def collect(opts: CollectOptions | None = None) -> Results:
             "github_cache_hits": gh.cache_hits,
             "rate_limit_remaining": gh.rate.remaining,
             "rate_limit": gh.rate.limit,
-            "core_devs": len(core_devs.devs),
         }
         log.info(
             f"{gh.requests} GitHub requests ({gh.cache_hits} served from cache), "

@@ -52,28 +52,6 @@
   "health_percentage": 87,
   "updated_at": "2026-07-06T09:06:10Z"
  },
- "core_devs": [
-  "Intron7",
-  "LucaMarconato",
-  "PauBadiaM",
-  "Zethson",
-  "canergen",
-  "emdann",
-  "flying-sheep",
-  "giovp",
-  "grst",
-  "gtca",
-  "ilan-gold",
-  "ivirshup",
-  "josenimo",
-  "kaizhang",
-  "melonora",
-  "mikelkou",
-  "ori-kron-wis",
-  "roshan9128",
-  "sarajimenez",
-  "timtreis"
- ],
  "dependabot_alerts": null,
  "environments": [
   {

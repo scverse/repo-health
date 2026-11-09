@@ -84,7 +84,7 @@ Checks that do not apply, such as packaging checks on a repo with no `pyproject.
 |---|---|---|---|
 | **R** | `docs/readthedocs-yaml` | A `.readthedocs.yaml` build config is committed | cont |
 | **R** | `docs/rtd-linked` | The Read the Docs project of the same slug builds *this* repository | rtd |
-| **R** | `docs/rtd-core-devs` | At least two scverse core devs can administer the RTD project | rtd |
+| **R** | `docs/rtd-scverse-bot` | The scverse-bot account is a maintainer of the RTD project | rtd |
 | **R** | `docs/scverse-domain` | Documentation is served from `<package>.scverse.org`, not readthedocs.io | rtd meta |
 | **r** | `docs/rtd-build` | The most recent build of the `stable` version succeeded | rtd |
 
@@ -217,7 +217,7 @@ Then add a fixture-backed test in [`tests/`](tests/), against a snapshot of a re
 $ uv run python scripts/capture_fixture.py scirpy scanpy
 ```
 
-[`config/core_devs.yaml`](config/core_devs.yaml) is a hand-maintained list of the core team, committed rather than read from [scverse.org/people](https://scverse.org/people) so the dashboard does not depend on that page's structure.
+Read the Docs organizations are a paid feature scverse does not have, so `docs/rtd-scverse-bot` instead requires the technical account to be a maintainer of every RTD project, which lets access be restored when a maintainer leaves. That account is called [`scverse`](https://app.readthedocs.org/profiles/scverse/) on Read the Docs and signs in through the [`scverse-bot`](https://github.com/scverse-bot) GitHub profile.
 
 This repo is subject to its own dashboard, and is expected to be all green.
 

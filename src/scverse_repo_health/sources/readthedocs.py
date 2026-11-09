@@ -6,8 +6,8 @@ account's API token will do — to get a comfortable limit.
 
 RTD *organizations* are a Business-plan feature and no scverse project has one, so
 "is this project owned by scverse" is instead answered by two things we can see:
-the project points at a scverse GitHub repo, and at least two of its maintainers are
-scverse core devs.
+the project points at a scverse GitHub repo, and the scverse-bot technical account is
+one of its maintainers.
 """
 
 from __future__ import annotations
