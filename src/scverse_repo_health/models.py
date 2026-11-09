@@ -159,7 +159,6 @@ _BULK_FIELDS = frozenset(
         "rulesets",
         "tree",
         "workflows",
-        "core_devs",
         "dependencies",
         "actions_permissions",
         "immutable_releases",
@@ -234,8 +233,6 @@ class RepoData:
     python_releases: list[dict[str, Any]] | None = None
     #: How far this repo's ``.cruft.json`` commit is behind the template.
     template_status: dict[str, Any] | None = None
-    #: GitHub logins of the scverse core team, from ``config/core_devs.yaml``.
-    core_devs: list[str] = field(default_factory=list)
     #: Check ids waived for this repo, id -> reason.
     waivers: dict[str, str] = field(default_factory=dict)
     #: Attribute name -> why it could not be fetched.

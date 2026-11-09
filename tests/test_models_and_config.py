@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 
 import pytest
-import yaml
 
 from scverse_repo_health.collect import Results, pypi_name_for, select_repos
-from scverse_repo_health.config import CoreDevs, ReposConfig, config_dir
+from scverse_repo_health.config import ReposConfig
 from scverse_repo_health.models import Category, CheckResult, RepoData, RepoReport, Status, Tier
 from scverse_repo_health.registry import run_all
 
@@ -71,22 +70,6 @@ def test_shipped_config_parses():
     assert config.exclusions
     assert all(reason for reason in config.exclusions.values()), "every exclusion needs a reason"
     assert config.include
-
-
-def test_shipped_core_devs_parse():
-    devs = CoreDevs.load()
-    assert len(devs.devs) >= 15
-    assert devs.is_core_dev("flying-sheep")
-    assert devs.is_core_dev("Flying-Sheep"), "logins compare case-insensitively"
-    assert not devs.is_core_dev("dependabot")
-    assert devs.logins == sorted(devs.devs)
-
-
-def test_core_devs_file_needs_only_login_and_name():
-    """The config is a flat list; anything else in it is ignored, not required."""
-    raw = yaml.safe_load((config_dir() / "core_devs.yaml").read_text(encoding="utf-8"))
-    assert set(raw) == {"core_devs"}
-    assert all("login" in entry for entry in raw["core_devs"])
 
 
 def test_waivers_are_per_repo():

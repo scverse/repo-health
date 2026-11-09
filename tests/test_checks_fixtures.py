@@ -42,7 +42,7 @@ def test_scirpy_template_survives_a_tmp_path(scirpy_results):
     ("check_id", "expected"),
     [
         ("docs/rtd-linked", Status.PASS),
-        ("docs/rtd-core-devs", Status.PASS),
+        ("docs/rtd-scverse-bot", Status.PASS),
         ("docs/scverse-domain", Status.PASS),
         ("packaging/pypi-org", Status.PASS),
         ("packaging/trusted-publishing", Status.PASS),
@@ -91,7 +91,7 @@ def test_scirpy_classic_protection_is_unknown_not_failed(scirpy_results):
         ("branch/requires-review", Status.FAIL),
         ("branch/status-checks", Status.PASS),
         ("docs/rtd-linked", Status.FAIL),
-        ("docs/rtd-core-devs", Status.FAIL),
+        ("docs/rtd-scverse-bot", Status.FAIL),
         ("docs/scverse-domain", Status.WARN),
         ("security/actions-pinned", Status.FAIL),
         ("security/zizmor-clean", Status.FAIL),

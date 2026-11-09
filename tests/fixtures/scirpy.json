@@ -58,28 +58,6 @@
   "health_percentage": 75,
   "updated_at": "2026-03-24T20:27:28Z"
  },
- "core_devs": [
-  "Intron7",
-  "LucaMarconato",
-  "PauBadiaM",
-  "Zethson",
-  "canergen",
-  "emdann",
-  "flying-sheep",
-  "giovp",
-  "grst",
-  "gtca",
-  "ilan-gold",
-  "ivirshup",
-  "josenimo",
-  "kaizhang",
-  "melonora",
-  "mikelkou",
-  "ori-kron-wis",
-  "roshan9128",
-  "sarajimenez",
-  "timtreis"
- ],
  "dependabot_alerts": null,
  "environments": [
   {
@@ -803,7 +781,8 @@
   "users": [
    "grst",
    "flying-sheep",
-   "Zethson"
+   "Zethson",
+   "scverse"
   ]
  },
  "rulesets": [],
