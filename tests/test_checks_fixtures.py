@@ -85,7 +85,7 @@ def test_scirpy_classic_protection_is_unknown_not_failed(scirpy_results):
     [
         ("template/cruft", Status.PASS),
         ("template/up-to-date", Status.FAIL),
-        ("template/pre-commit-ci", Status.PASS),
+        ("template/autofix-ci", Status.FAIL),
         ("branch/protected", Status.PASS),
         ("branch/requires-pr", Status.PASS),
         ("branch/requires-review", Status.FAIL),

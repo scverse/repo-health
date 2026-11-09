@@ -307,27 +307,3 @@ def dangerous_triggers(r: RepoData) -> CheckResult:
     if unsafe:
         return failed(f"{truncate(sorted(set(unsafe)))} check out PR code under `pull_request_target`", fix)
     return warned(f"{truncate(sorted(set(using)))} use `pull_request_target` (no PR checkout seen)", fix)
-
-
-@check(
-    id="security/security-md",
-    tier=Tier.RECOMMENDED,
-    category=CATEGORY,
-    title="SECURITY.md",
-    description="A security policy exists, in this repo or via the org's `.github` repo",
-    needs=("meta",),
-)
-def security_md(r: RepoData) -> CheckResult:
-    fix = f"{r.html_url}/security/policy"
-    if (reason := r.is_unavailable("community_profile")) is not None:
-        return unknown(reason, fix)
-    if r.community_profile is None:
-        return unknown("Community profile could not be read", fix)
-    files = r.community_profile.get("files") or {}
-    policy = files.get("security") or files.get("security_policy")
-    return verdict(
-        bool(policy),
-        "Security policy present",
-        "No security policy",
-        fix_url=(policy or {}).get("html_url") if policy else fix,
-    )

@@ -41,7 +41,7 @@ A repo that fails to collect is listed in the footer, the site is still written,
 
 ## The checks
 
-40 checks in six groups, which are the six column groups on the dashboard.
+39 checks in six groups, which are the six column groups on the dashboard.
 Each declares a **tier** and what data it **needs**:
 
 | Tier | Meaning |
@@ -73,7 +73,7 @@ Checks that do not apply, such as packaging checks on a repo with no `pyproject.
 | **R** | `template/cruft` | `.cruft.json` exists and names the scverse template | cont |
 | **R** | `template/up-to-date` | `.cruft.json` commit matches the latest cookiecutter-scverse release | cont meta |
 | **r** | `template/src-layout` | Builds with hatchling from a `src/` layout | cont |
-| **r** | `template/pre-commit-ci` | pre-commit.ci runs on pull requests | meta |
+| **r** | `template/autofix-ci` | A workflow runs pre-commit and pushes its fixes with `autofix-ci/action` | cont |
 | **r** | `template/codecov` | A codecov config or a codecov check run exists | cont meta |
 | **r** | `template/default-branch` | The default branch is called `main` | meta |
 | **i** | `template/packages-json` | Listed in scverse.org's ecosystem index, under a category the dashboard knows | web |
@@ -118,7 +118,6 @@ Checks that do not apply, such as packaging checks on a repo with no `pyproject.
 | **R** | `security/workflow-permissions` | Every workflow declares a top-level `permissions:`, and the repo default is read-only | cont admin |
 | **r** | `security/persist-credentials` | `actions/checkout` steps set `persist-credentials: false` (zizmor `artipacked`) | cont |
 | **r** | `security/dangerous-triggers` | `pull_request_target` does not check out untrusted PR code (zizmor `dangerous-triggers`) | cont |
-| **r** | `security/security-md` | A security policy exists, in this repo or via the org's `.github` repo | meta |
 
 
 ### Branch protection & review
