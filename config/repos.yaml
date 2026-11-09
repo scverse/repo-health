@@ -24,7 +24,7 @@ exclusions:
   # -- events, workshops, hackathons ------------------------------------------------
   - repo: 202510_workshop_GSCN
     reason: Workshop material
-  - repo: 202609_workshop_GSCN
+  - repo: 202611_workshop_SBI2
     reason: Workshop material
   - repo: 2025_03_hackathon_owkin
     reason: Hackathon repository
@@ -46,6 +46,8 @@ exclusions:
     reason: Template for event repositories
   - repo: gscn2026
     reason: Website for the GSCN 2026 workshop
+  - repo: sbi2_2026
+    reason: Hackathon repository
   - repo: sc-proteomics2026
     reason: Event repository
   - repo: spatialdata-basel-workshop-2024
@@ -56,6 +58,8 @@ exclusions:
   - repo: cellrank_notebooks
     reason: Tutorial notebooks
   - repo: decoupler-tutorials
+    reason: Tutorial notebooks
+  - repo: gatac-tutorials
     reason: Tutorial notebooks
   - repo: liana-tutorials
     reason: Tutorial notebooks
@@ -75,8 +79,6 @@ exclusions:
     reason: Tutorial notebooks
 
   # -- websites and prose -------------------------------------------------------------
-  - repo: muon-site
-    reason: Website
   - repo: scvi-tools-site
     reason: Website
   - repo: antibody-based-spatial-proteomics-guide
@@ -96,6 +98,14 @@ exclusions:
   - repo: pertpy-datasets
     reason: Dataset hosting
 
+  # -- not packages ----------------------------------------------------------------------
+  - repo: gatac-reproducibility
+    reason: Reproducibility material, not a package
+  - repo: zarr-convention-dataframe
+    reason: Specification repository, not a package
+  - repo: zarr-convention-enum
+    reason: Specification repository, not a package
+
   # -- not Python ---------------------------------------------------------------------------
   # The catalogue is built around Python packaging; these need their own standards.
   - repo: anndata-rs
@@ -110,13 +120,13 @@ exclusions:
 # meaningful: every org repo has been looked at by someone.
 include:
   - acumen
-  - annbatch
   - anndata-plot
-  - cell-painting-io
   - cellrank
+  - cupy-stubs
   - deres
   - fast-array-utils
   - formulaic-contrasts
+  - gatac
   - genomic-features
   - gget
   - liana
@@ -138,6 +148,7 @@ include:
   - spatialdata-integration-testing
   - spatialdata-io
   - spatialdata-plot
+  - zarr-kvikio
   - zulip-bots
   - gpu-ci-config
 
