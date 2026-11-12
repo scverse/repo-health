@@ -27,6 +27,10 @@ repos:
       - id: biome-check
         additional_dependencies: ["@biomejs/biome@2.6.3"]
         files: ^src/scverse_repo_health/render/static/.*\.(js|css|json)$
+  - repo: https://github.com/jolars/panache-pre-commit
+    rev: v3.18.0
+    hooks:
+      - id: panache-format
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: 50e0f3aee9dc5747a5f173f79a7417403c18dda6  # frozen: v2.30.3
     hooks:
