@@ -42,7 +42,3 @@ repos:
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: trailing-whitespace
-
-ci:
-  autofix_prs: true
-  autoupdate_schedule: monthly
