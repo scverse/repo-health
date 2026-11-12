@@ -1,6 +1,6 @@
 # scverse repo-health
 
-A weekly dashboard of which repositories in the [scverse][] GitHub organisation meet the org's standards: template adoption, trusted publishing, branch protection, PyPI ownership, docs domain, supply chain hardening.
+A weekly dashboard of which repositories in the [scverse][] GitHub organisation meet the org’s standards: template adoption, trusted publishing, branch protection, PyPI ownership, docs domain, supply chain hardening.
 Every gap links to the page where it gets fixed.
 
 In the spirit of [nf-co.re/pipeline_health][nfcore].
@@ -44,100 +44,96 @@ A repo that fails to collect is listed in the footer, the site is still written,
 39 checks in six groups, which are the six column groups on the dashboard.
 Each declares a **tier** and what data it **needs**:
 
-| Tier | Meaning |
-|---|---|
-| **R** required | Expected of every scverse package. Counts towards the compliance score. |
-| **r** recommended | Strongly encouraged, not scored. |
-| **i** informational | Context, not a judgement. |
+  | Tier                | Meaning                                                                 |
+  | ------------------- | ----------------------------------------------------------------------- |
+  | **R** required      | Expected of every scverse package. Counts towards the compliance score. |
+  | **r** recommended   | Strongly encouraged, not scored.                                        |
+  | **i** informational | Context, not a judgement.                                               |
 
-| Needs | Where the answer comes from |
-|---|---|
-| `meta` | GitHub `metadata:read` — public, so these always have an answer |
-| `cont` | GitHub `contents:read` — the git tree and a handful of blobs |
-| `admin` | GitHub `administration:read` — renders `?` without the App installed |
-| `admin?` | Rulesets need only `meta`; `admin` is the fallback for *classic* branch protection |
-| `sec` | GitHub `dependabot_alerts:read` |
-| `actions` | GitHub `actions:read` |
-| `pypi` | pypi.org |
-| `rtd` | readthedocs.org |
-| `py` | endoflife.date — Python release dates, for the SPEC 0 window |
-| `web` | scverse.org's `packages.json` |
+  | Needs     | Where the answer comes from                                                        |
+  | --------- | ---------------------------------------------------------------------------------- |
+  | `meta`    | GitHub `metadata:read` — public, so these always have an answer                    |
+  | `cont`    | GitHub `contents:read` — the git tree and a handful of blobs                       |
+  | `admin`   | GitHub `administration:read` — renders `?` without the App installed               |
+  | `admin?`  | Rulesets need only `meta`; `admin` is the fallback for *classic* branch protection |
+  | `sec`     | GitHub `dependabot_alerts:read`                                                    |
+  | `actions` | GitHub `actions:read`                                                              |
+  | `pypi`    | pypi.org                                                                           |
+  | `rtd`     | readthedocs.org                                                                    |
+  | `py`      | endoflife.date — Python release dates, for the SPEC 0 window                       |
+  | `web`     | scverse.org’s `packages.json`                                                      |
 
 Checks that do not apply, such as packaging checks on a repo with no `pyproject.toml`, render `–`.
 `repo-health list-checks` prints this catalogue in the terminal.
 
 ### Template & consistency
 
-| | Check | What it means | Needs |
-|---|---|---|---|
-| **R** | `template/cruft` | `.cruft.json` exists and names the scverse template | cont |
-| **R** | `template/up-to-date` | `.cruft.json` commit matches the latest cookiecutter-scverse release | cont meta |
-| **r** | `template/src-layout` | Builds with hatchling from a `src/` layout | cont |
-| **r** | `template/autofix-ci` | A workflow runs pre-commit and pushes its fixes with `autofix-ci/action` | cont |
-| **r** | `template/codecov` | A codecov config or a codecov check run exists | cont meta |
-| **r** | `template/default-branch` | The default branch is called `main` | meta |
-| **i** | `template/packages-json` | Listed in scverse.org's ecosystem index, under a category the dashboard knows | web |
+  |       | Check                     | What it means                                                                 | Needs     |
+  | ----- | ------------------------- | ----------------------------------------------------------------------------- | --------- |
+  | **R** | `template/cruft`          | `.cruft.json` exists and names the scverse template                           | cont      |
+  | **R** | `template/up-to-date`     | `.cruft.json` commit matches the latest cookiecutter-scverse release          | cont meta |
+  | **r** | `template/src-layout`     | Builds with hatchling from a `src/` layout                                    | cont      |
+  | **r** | `template/autofix-ci`     | A workflow runs pre-commit and pushes its fixes with `autofix-ci/action`      | cont      |
+  | **r** | `template/codecov`        | A codecov config or a codecov check run exists                                | cont meta |
+  | **r** | `template/default-branch` | The default branch is called `main`                                           | meta      |
+  | **i** | `template/packages-json`  | Listed in scverse.org’s ecosystem index, under a category the dashboard knows | web       |
 
 ### Documentation
 
-| | Check | What it means | Needs |
-|---|---|---|---|
-| **R** | `docs/readthedocs-yaml` | A `.readthedocs.yaml` build config is committed | cont |
-| **R** | `docs/rtd-linked` | The Read the Docs project of the same slug builds *this* repository | rtd |
-| **R** | `docs/rtd-scverse-bot` | The scverse-bot account is a maintainer of the RTD project | rtd |
-| **R** | `docs/scverse-domain` | Documentation is served from `<package>.scverse.org`, not readthedocs.io | rtd meta |
-| **r** | `docs/rtd-build` | The most recent build of the `stable` version succeeded | rtd |
-
+  |       | Check                   | What it means                                                            | Needs    |
+  | ----- | ----------------------- | ------------------------------------------------------------------------ | -------- |
+  | **R** | `docs/readthedocs-yaml` | A `.readthedocs.yaml` build config is committed                          | cont     |
+  | **R** | `docs/rtd-linked`       | The Read the Docs project of the same slug builds *this* repository      | rtd      |
+  | **R** | `docs/rtd-scverse-bot`  | The scverse-bot account is a maintainer of the RTD project               | rtd      |
+  | **R** | `docs/scverse-domain`   | Documentation is served from `<package>.scverse.org`, not readthedocs.io | rtd meta |
+  | **r** | `docs/rtd-build`        | The most recent build of the `stable` version succeeded                  | rtd      |
 
 ### Packaging & release
 
-| | Check | What it means | Needs |
-|---|---|---|---|
-| **R** | `packaging/pypi-org` | `ownership.organization` on PyPI is the scverse org | pypi |
-| **R** | `packaging/trusted-publishing` | The latest release carries PEP 740 attestations naming this repo's workflow | pypi |
-| **R** | `packaging/release-workflow` | Publishes via pypa/gh-action-pypi-publish with `id-token: write`, no password, in an environment | cont |
-| **R** | `packaging/spec0-python` | `requires-python` has dropped the Python versions SPEC 0 has dropped | cont py |
-| **R** | `packaging/immutable-releases` | The repository has immutable releases turned on | admin |
-| **r** | `packaging/releases-immutable` | The last few published releases are actually marked immutable | meta |
-| **r** | `packaging/pypi-environment` | A deployment environment named `pypi` exists and has protection rules | admin |
-| **r** | `packaging/version-sync` | The newest GitHub release tag matches the newest PyPI version | meta pypi |
-
+  |       | Check                          | What it means                                                                                    | Needs     |
+  | ----- | ------------------------------ | ------------------------------------------------------------------------------------------------ | --------- |
+  | **R** | `packaging/pypi-org`           | `ownership.organization` on PyPI is the scverse org                                              | pypi      |
+  | **R** | `packaging/trusted-publishing` | The latest release carries PEP 740 attestations naming this repo’s workflow                      | pypi      |
+  | **R** | `packaging/release-workflow`   | Publishes via pypa/gh-action-pypi-publish with `id-token: write`, no password, in an environment | cont      |
+  | **R** | `packaging/spec0-python`       | `requires-python` has dropped the Python versions SPEC 0 has dropped                             | cont py   |
+  | **R** | `packaging/immutable-releases` | The repository has immutable releases turned on                                                  | admin     |
+  | **r** | `packaging/releases-immutable` | The last few published releases are actually marked immutable                                    | meta      |
+  | **r** | `packaging/pypi-environment`   | A deployment environment named `pypi` exists and has protection rules                            | admin     |
+  | **r** | `packaging/version-sync`       | The newest GitHub release tag matches the newest PyPI version                                    | meta pypi |
 
 ### Supply chain & CI security
 
-| | Check | What it means | Needs |
-|---|---|---|---|
-| **R** | `integration/upstream-tests` | This package's test suite passes in scverse/integration-testing against upstream core packages | meta |
-| **R** | `security/actions-pinned` | Every `uses:` names a full 40-character commit SHA | cont |
-| **r** | `security/precommit-pinned` | Every `rev:` in `.pre-commit-config.yaml` is a commit SHA | cont |
-| **R** | `security/zizmor-clean` | A zizmor audit of every workflow, action and Dependabot config reports no findings | cont |
-| **R** | `security/dependabot` | `.github/dependabot.yml` covers both the github-actions and pre-commit ecosystems | cont |
-| **r** | `security/dependabot-alerts` | No unresolved Dependabot security alerts | sec |
-| **r** | `security/secret-scanning` | Secret scanning and push protection are both enabled | admin |
-| **r** | `security/private-vuln-reporting` | Researchers can report vulnerabilities privately | admin |
-| **R** | `security/workflow-permissions` | Every workflow declares a top-level `permissions:`, and the repo default is read-only | cont admin |
-| **r** | `security/persist-credentials` | `actions/checkout` steps set `persist-credentials: false` (zizmor `artipacked`) | cont |
-| **r** | `security/dangerous-triggers` | `pull_request_target` does not check out untrusted PR code (zizmor `dangerous-triggers`) | cont |
-
+  |       | Check                             | What it means                                                                                  | Needs      |
+  | ----- | --------------------------------- | ---------------------------------------------------------------------------------------------- | ---------- |
+  | **R** | `integration/upstream-tests`      | This package’s test suite passes in scverse/integration-testing against upstream core packages | meta       |
+  | **R** | `security/actions-pinned`         | Every `uses:` names a full 40-character commit SHA                                             | cont       |
+  | **r** | `security/precommit-pinned`       | Every `rev:` in `.pre-commit-config.yaml` is a commit SHA                                      | cont       |
+  | **R** | `security/zizmor-clean`           | A zizmor audit of every workflow, action and Dependabot config reports no findings             | cont       |
+  | **R** | `security/dependabot`             | `.github/dependabot.yml` covers both the github-actions and pre-commit ecosystems              | cont       |
+  | **r** | `security/dependabot-alerts`      | No unresolved Dependabot security alerts                                                       | sec        |
+  | **r** | `security/secret-scanning`        | Secret scanning and push protection are both enabled                                           | admin      |
+  | **r** | `security/private-vuln-reporting` | Researchers can report vulnerabilities privately                                               | admin      |
+  | **R** | `security/workflow-permissions`   | Every workflow declares a top-level `permissions:`, and the repo default is read-only          | cont admin |
+  | **r** | `security/persist-credentials`    | `actions/checkout` steps set `persist-credentials: false` (zizmor `artipacked`)                | cont       |
+  | **r** | `security/dangerous-triggers`     | `pull_request_target` does not check out untrusted PR code (zizmor `dangerous-triggers`)       | cont       |
 
 ### Branch protection & review
 
-
-| | Check | What it means | Needs |
-|---|---|---|---|
-| **R** | `branch/protected` | Neither force-pushes nor deletion are allowed on the default branch | meta admin? |
-| **R** | `branch/requires-pr` | Changes to the default branch must go through a pull request | meta admin? |
-| **R** | `branch/requires-review` | A pull request needs at least one approving review to merge | meta admin? |
-| **r** | `branch/status-checks` | At least one status check must pass before merging | meta admin? |
+  |       | Check                    | What it means                                                       | Needs       |
+  | ----- | ------------------------ | ------------------------------------------------------------------- | ----------- |
+  | **R** | `branch/protected`       | Neither force-pushes nor deletion are allowed on the default branch | meta admin? |
+  | **R** | `branch/requires-pr`     | Changes to the default branch must go through a pull request        | meta admin? |
+  | **R** | `branch/requires-review` | A pull request needs at least one approving review to merge         | meta admin? |
+  | **r** | `branch/status-checks`   | At least one status check must pass before merging                  | meta admin? |
 
 ### Governance & community
 
-| | Check | What it means | Needs |
-|---|---|---|---|
-| **R** | `governance/license` | The repo carries a recognised OSI-approved license | meta |
-| **R** | `governance/gpl-free` | No runtime dependency, direct or transitive, is GPL-licensed, unless the repo is GPL itself | cont pypi |
-| **r** | `governance/description-topics` | The repo has a description, a homepage and the `scverse` topic | meta |
-| **i** | `governance/maintained` | Pushed to within the last year | meta |
+  |       | Check                           | What it means                                                                               | Needs     |
+  | ----- | ------------------------------- | ------------------------------------------------------------------------------------------- | --------- |
+  | **R** | `governance/license`            | The repo carries a recognised OSI-approved license                                          | meta      |
+  | **R** | `governance/gpl-free`           | No runtime dependency, direct or transitive, is GPL-licensed, unless the repo is GPL itself | cont pypi |
+  | **r** | `governance/description-topics` | The repo has a description, a homepage and the `scverse` topic                              | meta      |
+  | **i** | `governance/maintained`         | Pushed to within the last year                                                              | meta      |
 
 ## Repository selection
 
@@ -165,24 +161,24 @@ waivers:
 The cron authenticates as the **`scverse-repo-health` GitHub App**, installed on the scverse org.
 Set **exactly these five** under *Permissions & events → Repository permissions*, each to **Read-only**, and nothing else.
 
-| App settings UI | Workflow input | Endpoints it unlocks |
-|---|---|---|
-| **Metadata** | `permission-metadata` | `/orgs/{org}/repos`, `/repos/{o}/{r}`, `/rules/branches/{branch}`, `/community/profile` *(mandatory; GitHub grants it automatically)* |
-| **Contents** | `permission-contents` | `/git/trees`, `/contents/{path}`, `/releases`, `/tags`, `/compare` |
-| **Administration** | `permission-administration` | `/branches/{b}/protection`, `/immutable-releases`, `/environments`, `/actions/permissions/workflow`, `/private-vulnerability-reporting`, and `security_and_analysis` on the repo object |
-| **Dependabot alerts** | `permission-vulnerability-alerts` | `/dependabot/alerts` |
-| **Checks** | `permission-checks` | `/commits/{ref}/check-runs` |
+  | App settings UI       | Workflow input                    | Endpoints it unlocks                                                                                                                                                                    |
+  | --------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | **Metadata**          | `permission-metadata`             | `/orgs/{org}/repos`, `/repos/{o}/{r}`, `/rules/branches/{branch}`, `/community/profile` *(mandatory; GitHub grants it automatically)*                                                   |
+  | **Contents**          | `permission-contents`             | `/git/trees`, `/contents/{path}`, `/releases`, `/tags`, `/compare`                                                                                                                      |
+  | **Administration**    | `permission-administration`       | `/branches/{b}/protection`, `/immutable-releases`, `/environments`, `/actions/permissions/workflow`, `/private-vulnerability-reporting`, and `security_and_analysis` on the repo object |
+  | **Dependabot alerts** | `permission-vulnerability-alerts` | `/dependabot/alerts`                                                                                                                                                                    |
+  | **Checks**            | `permission-checks`               | `/commits/{ref}/check-runs`                                                                                                                                                             |
 
-The workflow inputs follow the REST API rather than the UI labels: "Dependabot alerts" is `vulnerability-alerts`, and check runs come under `checks`, **not** `actions`.
+The workflow inputs follow the REST API rather than the UI labels: “Dependabot alerts” is `vulnerability-alerts`, and check runs come under `checks`, **not** `actions`.
 `permission-*:` can only *narrow* what the installation holds, so the two lists must agree.
 
-| Symptom | Cause |
-|---|---|
-| `404` on `/users/scverse/installation` | the App is not installed on the org |
-| `422 The permissions requested are not granted to this installation` | a `permission-*:` input asks for something the installation lacks. Granting it on the App does not reach existing installations — accept it under **Organization settings → GitHub Apps → `scverse-repo-health` → Review request** |
+  | Symptom                                                              | Cause                                                                                                                                                                                                                              |
+  | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `404` on `/users/scverse/installation`                               | the App is not installed on the org                                                                                                                                                                                                |
+  | `422 The permissions requested are not granted to this installation` | a `permission-*:` input asks for something the installation lacks. Granting it on the App does not reach existing installations — accept it under **Organization settings → GitHub Apps → `scverse-repo-health` → Review request** |
 
 Repository secrets on `scverse/repo-health`: `APP_ID`, `APP_PRIVATE_KEY`, `RTD_TOKEN`.
-`APP_ID` is passed as `client-id`, which expects the App's **Client ID** (`Iv23…`); if the secret holds the numeric **App ID** instead, switch the input to `app-id`.
+`APP_ID` is passed as `client-id`, which expects the App’s **Client ID** (`Iv23…`); if the secret holds the numeric **App ID** instead, switch the input to `app-id`.
 
 Locally the tool falls back to `$GITHUB_TOKEN`, `$GH_TOKEN`, or `gh auth token`, and the admin-only checks render as `?`.
 Read the Docs throttles unauthenticated access after roughly eight requests a minute, so set `$RTD_TOKEN` to avoid a backoff-heavy run.
