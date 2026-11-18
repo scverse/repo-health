@@ -589,3 +589,27 @@ async def test_dependencies_walks_transitively_and_skips_optional_extras(tmp_pat
 
     assert {d["name"]: d["via"] for d in found} == {"a": None, "b": "a", "c": "b", "d": "b"}
     assert "requires_dist" not in found[0]
+
+
+async def test_provenance_ignores_prereleases_sharing_the_version_prefix(tmp_path):
+    from scverse_repo_health.sources.pypi import PyPIClient
+
+    files = [
+        {"filename": f, "provenance": f"https://pypi.org/integrity/scanpy/{v}/{f}/provenance"}
+        for v, f in [("1.13.0a1", "scanpy-1.13.0a1-py3-none-any.whl"), ("1.13.0", "scanpy-1.13.0.tar.gz")]
+    ]
+    requested = []
+
+    async def get(path: str, accept: str | None = None) -> dict | None:
+        if path.startswith("/simple/"):
+            return {"files": files}
+        requested.append(path)
+        return {"attestation_bundles": [{"publisher": {"repository": "scverse/scanpy"}}]}
+
+    async with PyPIClient(cache=False, cache_path=tmp_path) as pypi:
+        pypi._get = get
+        found = await pypi.provenance("scanpy", "1.13.0")
+
+    assert found is not None
+    assert found["filename"] == "scanpy-1.13.0.tar.gz"
+    assert requested == [files[1]["provenance"]]

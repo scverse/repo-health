@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING
 
 import httpx
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import InvalidSdistFilename, InvalidWheelFilename, parse_sdist_filename, parse_wheel_filename
+from packaging.version import InvalidVersion, Version
 
 from scverse_repo_health._log import log
 
@@ -127,16 +129,18 @@ class PyPIClient:
         simple = await self._get(f"/simple/{normalise(name)}/", accept=SIMPLE_ACCEPT)
         if not simple:
             return None
-        prefix = f"{normalise(name).replace('-', '_')}-{version}"
+        try:
+            wanted = Version(version)
+        except InvalidVersion:
+            return None
+        # Compare parsed versions: a filename prefix match lets `1.13.0` pick up `1.13.0a1`'s files.
         files = [
-            f
-            for f in simple.get("files", [])
-            if f.get("provenance") and normalise(f.get("filename", "")).startswith(normalise(prefix))
+            f for f in simple.get("files", []) if f.get("provenance") and _file_version(f.get("filename", "")) == wanted
         ]
         if not files:
             return None
         # One file is enough: every artefact of a release is published by the same job.
-        payload = await self._get(f"/integrity/{normalise(name)}/{version}/{files[0]['filename']}/provenance")
+        payload = await self._get(files[0]["provenance"])
         if not payload:
             return None
         bundles = payload.get("attestation_bundles") or []
@@ -214,6 +218,16 @@ def _wanted(specs: Iterable[str], *, extra: str, via: str | None) -> list[tuple[
         name = normalise(req.name)
         out += [((name, e), via) for e in ("", *sorted(req.extras))]
     return out
+
+
+def _file_version(filename: str) -> Version | None:
+    """The version a wheel or sdist filename carries, ``None`` for anything unparseable."""
+    try:
+        if filename.endswith(".whl"):
+            return parse_wheel_filename(filename)[1]
+        return parse_sdist_filename(filename)[1]
+    except (InvalidWheelFilename, InvalidSdistFilename, InvalidVersion):
+        return None
 
 
 def _first_line(text: str | None) -> str | None:
