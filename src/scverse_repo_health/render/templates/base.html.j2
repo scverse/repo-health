@@ -1,17 +1,10 @@
 <!doctype html>
-<html lang="en" data-theme="auto">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}scverse repo health{% endblock %}</title>
 <link rel="stylesheet" href="{{ base }}/static/style.css">
-<script>
-  // Applied before first paint so a chosen theme never flashes the other one.
-  (() => {
-    const saved = localStorage.getItem("repo-health-theme");
-    if (saved) document.documentElement.dataset.theme = saved;
-  })();
-</script>
 </head>
 <body>
 <header class="masthead">
@@ -19,9 +12,6 @@
     <h1><a href="{{ base }}/index.html">{{ org }} repo health</a></h1>
     <p class="subtitle">{% block subtitle %}{% endblock %}</p>
   </div>
-  <button type="button" id="theme-toggle" class="ghost" aria-label="Switch colour theme">
-    <span aria-hidden="true">◐</span> Theme
-  </button>
 </header>
 
 <main>
