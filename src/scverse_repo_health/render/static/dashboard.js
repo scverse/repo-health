@@ -3,21 +3,6 @@
 (() => {
 	const $ = (id) => document.getElementById(id);
 
-	/* -- theme toggle -------------------------------------------------------------- */
-
-	const toggle = $("theme-toggle");
-	if (toggle) {
-		const order = ["auto", "light", "dark"];
-		toggle.addEventListener("click", () => {
-			const current = document.documentElement.dataset.theme || "auto";
-			const next = order[(order.indexOf(current) + 1) % order.length];
-			document.documentElement.dataset.theme = next;
-			if (next === "auto") localStorage.removeItem("repo-health-theme");
-			else localStorage.setItem("repo-health-theme", next);
-			toggle.title = `Colour theme: ${next}`;
-		});
-	}
-
 	const matrix = document.querySelector("table.matrix");
 	if (!matrix) return;
 

@@ -112,8 +112,8 @@ lint.isort.required-imports = [ "from __future__ import annotations" ]
 column_width = 120
 
 [tool.pytest]
-testpaths = [ "tests" ]
 addopts = [ "--import-mode=importlib" ]
-filterwarnings = [ "error" ]
 asyncio_mode = "auto"
+filterwarnings = [ "error" ]
 strict = true
+testpaths = [ "tests" ]

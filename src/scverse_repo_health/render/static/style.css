@@ -7,27 +7,39 @@
  */
 
 :root {
-	color-scheme: light;
+	color-scheme: light dark;
 
-	--surface-1: #fcfcfb;
-	--plane: #f9f9f7;
-	--text-primary: #0b0b0b;
-	--text-secondary: #52514e;
+	--surface-1: light-dark(#fcfcfb, #1a1a19);
+	--plane: light-dark(#f9f9f7, #0d0d0d);
+	--text-primary: light-dark(#0b0b0b, #ffffff);
+	--text-secondary: light-dark(#52514e, #c3c2b7);
 	--muted: #898781;
-	--gridline: #e1e0d9;
-	--baseline: #c3c2b7;
-	--border: rgba(11, 11, 11, 0.1);
-	--accent: #2a78d6;
+	--gridline: light-dark(#e1e0d9, #2c2c2a);
+	--baseline: light-dark(#c3c2b7, #383835);
+	--border: light-dark(rgba(11, 11, 11, 0.1), rgba(255, 255, 255, 0.1));
+	--accent: light-dark(#2a78d6, #3987e5);
 
 	--good: #0ca30c;
 	--warning: #fab219;
 	--serious: #ec835a;
 	--critical: #d03b3b;
 
-	--tint-pass: color-mix(in srgb, var(--good) 20%, var(--surface-1));
-	--tint-fail: color-mix(in srgb, var(--critical) 24%, var(--surface-1));
-	--tint-warn: color-mix(in srgb, var(--warning) 32%, var(--surface-1));
-	--tint-unknown: color-mix(in srgb, var(--muted) 22%, var(--surface-1));
+	--tint-pass: light-dark(
+		color-mix(in srgb, var(--good) 20%, var(--surface-1)),
+		color-mix(in srgb, var(--good) 26%, var(--surface-1))
+	);
+	--tint-fail: light-dark(
+		color-mix(in srgb, var(--critical) 24%, var(--surface-1)),
+		color-mix(in srgb, var(--critical) 30%, var(--surface-1))
+	);
+	--tint-warn: light-dark(
+		color-mix(in srgb, var(--warning) 32%, var(--surface-1)),
+		color-mix(in srgb, var(--warning) 26%, var(--surface-1))
+	);
+	--tint-unknown: light-dark(
+		color-mix(in srgb, var(--muted) 22%, var(--surface-1)),
+		color-mix(in srgb, var(--muted) 26%, var(--surface-1))
+	);
 	--tint-na: var(--surface-1);
 
 	--radius: 4px;
@@ -39,42 +51,6 @@
 	--head-height: 13rem;
 	--font: system-ui, -apple-system, "Segoe UI", sans-serif;
 	--mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-	:root:where(:not([data-theme="light"])) {
-		color-scheme: dark;
-		--surface-1: #1a1a19;
-		--plane: #0d0d0d;
-		--text-primary: #ffffff;
-		--text-secondary: #c3c2b7;
-		--muted: #898781;
-		--gridline: #2c2c2a;
-		--baseline: #383835;
-		--border: rgba(255, 255, 255, 0.1);
-		--accent: #3987e5;
-		--tint-pass: color-mix(in srgb, var(--good) 26%, var(--surface-1));
-		--tint-fail: color-mix(in srgb, var(--critical) 30%, var(--surface-1));
-		--tint-warn: color-mix(in srgb, var(--warning) 26%, var(--surface-1));
-		--tint-unknown: color-mix(in srgb, var(--muted) 26%, var(--surface-1));
-	}
-}
-
-:root[data-theme="dark"] {
-	color-scheme: dark;
-	--surface-1: #1a1a19;
-	--plane: #0d0d0d;
-	--text-primary: #ffffff;
-	--text-secondary: #c3c2b7;
-	--muted: #898781;
-	--gridline: #2c2c2a;
-	--baseline: #383835;
-	--border: rgba(255, 255, 255, 0.1);
-	--accent: #3987e5;
-	--tint-pass: color-mix(in srgb, var(--good) 26%, var(--surface-1));
-	--tint-fail: color-mix(in srgb, var(--critical) 30%, var(--surface-1));
-	--tint-warn: color-mix(in srgb, var(--warning) 26%, var(--surface-1));
-	--tint-unknown: color-mix(in srgb, var(--muted) 26%, var(--surface-1));
 }
 
 * {
